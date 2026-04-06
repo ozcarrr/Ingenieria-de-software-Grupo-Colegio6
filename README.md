@@ -48,7 +48,9 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 
 ## Backend — Estado actual
 
-### Dominio (`Kairos.Domain`)
+### Dominio (`Kairos.Domain`) 
+
+Hay que modificar las entidades en base a lo que usemos para la base dedatos en MySQL
 
 | Entidad | Campos clave |
 |---|---|
@@ -63,7 +65,9 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 | Auth | `LoginCommand`, `RegisterCommand` (con FluentValidation) |
 | Feed | `GetFeedQuery` (paginación por offset), `CreatePostCommand` |
 | Storage | `UploadFileCommand` → delega a `IStorageService` |
-| Reportes | `GetUserReportQuery` → agrega actividades y delega a `IReportGeneratorService` |
+
+#### Todo
+| Curriculum | `GenerateCurriculumCommand` → agrega actividades y delega a `ICurriculumGeneratorService` |
 
 ### Infrastructure — Servicios implementados
 
@@ -71,8 +75,9 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 |---|---|
 | `ApplicationDbContext` | EF Core + Pomelo MySQL. Configuraciones de índices, longitudes y cascadas. |
 | `StorageService` | Sube archivos a Azure Blob Storage y retorna la URL del CDN. |
-| `ReportGeneratorService` | Genera PDF de actividad mensual con QuestPDF (tabla de métricas, header/footer). |
 | `JwtService` | Emite tokens JWT HS256 con claims de userId, email y fullName. |
+
+#### Todo
 | `CurriculumGenerator` | Estructura creada con QuestPDF. **Implementación pendiente.** |
 
 ### API — Endpoints disponibles
@@ -84,7 +89,9 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 | GET | `/api/posts/feed` | Feed paginado (`?page=1&pageSize=20`) |
 | POST | `/api/posts` | Crear publicación |
 | POST | `/api/storage/upload` | Subir imagen/video a Azure Blob (max 50 MB) |
-| GET | `/api/reports/me` | Descargar reporte PDF mensual (`?month=&year=`) |
+
+#### Todo
+| GET | `/api/curriculum/me` | Descargar curriculum PDF |
 
 ### SignalR Hub — `/hubs/social`
 
