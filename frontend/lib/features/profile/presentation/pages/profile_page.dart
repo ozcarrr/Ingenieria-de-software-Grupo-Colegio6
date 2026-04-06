@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -9,7 +11,13 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final _api = ApiClient();
+  final _picker = ImagePicker();
+
   bool _isEditing = false;
+  bool _isUploadingAvatar = false;
+  bool _isDownloadingReport = false;
+  String? _profilePictureUrl;
 
   // Form controllers — pre-filled with mock data
   final _nameController = TextEditingController(text: 'Matías Silva');
@@ -33,6 +41,56 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  Future<void> _pickAndUploadAvatar() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+    if (image == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+    try {
+      final result = await _api.uploadFile(image.path, 'image/jpeg');
+      setState(() => _profilePictureUrl = result['cdnUrl'] as String?);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto de perfil actualizada.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al subir la imagen.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
+  Future<void> _downloadReport() async {
+    setState(() => _isDownloadingReport = true);
+    try {
+      final now = DateTime.now();
+      final bytes = await _api.downloadReport(month: now.month, year: now.year);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reporte descargado (${bytes.length} bytes).')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al descargar el reporte.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloadingReport = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +106,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   isEditing: _isEditing,
                   onToggleEdit: () => setState(() => _isEditing = !_isEditing),
                   onSave: () => setState(() => _isEditing = false),
+                  profilePictureUrl: _profilePictureUrl,
+                  isUploadingAvatar: _isUploadingAvatar,
+                  onPickAvatar: _pickAndUploadAvatar,
                 ),
                 const SizedBox(height: 16),
                 _AboutCard(
@@ -62,6 +123,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 const _SkillsCard(),
                 const SizedBox(height: 16),
                 const _ExperienceCard(),
+                const SizedBox(height: 16),
+                _ReportCard(
+                  isLoading: _isDownloadingReport,
+                  onDownload: _downloadReport,
+                ),
               ],
             ),
           ),
@@ -75,11 +141,17 @@ class _ProfileHeader extends StatelessWidget {
   final bool isEditing;
   final VoidCallback onToggleEdit;
   final VoidCallback onSave;
+  final String? profilePictureUrl;
+  final bool isUploadingAvatar;
+  final VoidCallback onPickAvatar;
 
   const _ProfileHeader({
     required this.isEditing,
     required this.onToggleEdit,
     required this.onSave,
+    this.profilePictureUrl,
+    this.isUploadingAvatar = false,
+    required this.onPickAvatar,
   });
 
   @override
@@ -143,27 +215,37 @@ class _ProfileHeader extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.surface, width: 3),
                       ),
-                      child: const CircleAvatar(
+                      child: CircleAvatar(
                         radius: 44,
-                        backgroundColor: Color(0xFFB0BEC5),
-                        child: Icon(Icons.person, color: Colors.white, size: 40),
+                        backgroundColor: const Color(0xFFB0BEC5),
+                        backgroundImage: profilePictureUrl != null
+                            ? NetworkImage(profilePictureUrl!)
+                            : null,
+                        child: profilePictureUrl == null
+                            ? const Icon(Icons.person, color: Colors.white, size: 40)
+                            : null,
                       ),
                     ),
                     if (isEditing)
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 14,
+                        child: GestureDetector(
+                          onTap: isUploadingAvatar ? null : onPickAvatar,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: isUploadingAvatar
+                                ? const Padding(
+                                    padding: EdgeInsets.all(5),
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white, strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.camera_alt, color: Colors.white, size: 14),
                           ),
                         ),
                       ),
@@ -528,6 +610,66 @@ class _ExperienceItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Report Card ────────────────────────────────────────────────────────────────
+
+class _ReportCard extends StatelessWidget {
+  final bool isLoading;
+  final VoidCallback onDownload;
+
+  const _ReportCard({required this.isLoading, required this.onDownload});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Reporte de actividad',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Descarga un resumen PDF de tu participación social del mes actual.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : onDownload,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+              label: const Text('Descargar reporte mensual'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/api/api_client.dart';
+import '../../../../core/services/social_hub_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../chat/presentation/pages/chats_page.dart';
 import '../../../jobs/presentation/pages/jobs_page.dart';
@@ -20,6 +22,39 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedNavIndex = 0;
+
+  // ── Live updates banner ────────────────────────────────────────────────────
+  // SocialHubService is instantiated once the user has a valid JWT.
+  // For now it's null; call _connectHub(token) after login.
+  SocialHubService? _hub;
+  String? _liveNotification;
+
+  void _connectHub(String jwt) {
+    _hub = SocialHubService(jwt);
+    _hub!.connect();
+
+    _hub!.onLike.listen((data) {
+      if (!mounted) return;
+      setState(() => _liveNotification = '❤️ ${data['likedByName']} dio like a tu publicación.');
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _liveNotification = null);
+      });
+    });
+
+    _hub!.onFollow.listen((data) {
+      if (!mounted) return;
+      setState(() => _liveNotification = '👤 ${data['followerName']} te sigue ahora.');
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _liveNotification = null);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _hub?.dispose();
+    super.dispose();
+  }
 
   static const _mockPosts = [
     PostModel(
@@ -57,7 +92,24 @@ class _HomePageState extends State<HomePage> {
         selectedIndex: _selectedNavIndex,
         onNavItemTapped: (i) => setState(() => _selectedNavIndex = i),
       ),
-      body: _currentPage,
+      body: Column(
+        children: [
+          // ── Live notification banner ─────────────────────────────────────
+          if (_liveNotification != null)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              color: AppColors.primary.withOpacity(0.9),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Text(
+                _liveNotification!,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          Expanded(child: _currentPage),
+        ],
+      ),
     );
   }
 }
