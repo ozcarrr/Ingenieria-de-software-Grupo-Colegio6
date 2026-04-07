@@ -2,7 +2,7 @@
 // Registro de acciones del usuario (para generar el CV automáticamente).
 namespace Kairos.Domain.Entities;
 public enum ActivityType   { Login, PostCreated, PostLiked, CommentPosted,
-                             ProfileUpdated, JobApplied, FollowedUser }
+                             ProfileUpdated, JobApplied, FollowedUser , UserFollowed}
                              
 public class UserActivity
 {
