@@ -1,6 +1,5 @@
 // ============================================================
 //  Kairos.Infrastructure / Data / ApplicationDbContext.cs
-//  Reemplaza el archivo existente en esa ruta.
 // ============================================================
 
 using Kairos.Domain.Entities;
