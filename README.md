@@ -183,7 +183,11 @@ static const _baseUrl = 'https://TU_API.azurewebsites.net/api';
 ```
 
 ---
+## Logic Diagram
 
+<img width="1440" height="1016" alt="imagen" src="https://github.com/user-attachments/assets/6a28e10a-7f14-403d-bc21-bc9acdae0733" />
+
+---
 ## Pendiente
 
 - [ ] Implementar el cuerpo de `CurriculumGenerator` (generador de CV en PDF con QuestPDF)
