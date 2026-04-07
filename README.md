@@ -50,13 +50,36 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 
 ### Dominio (`Kairos.Domain`) 
 
-Hay que modificar las entidades en base a lo que usemos para la base dedatos en MySQL
+### Base de datos
 
-| Entidad | Campos clave |
-|---|---|
-| `User` | Id, Username, Email, PasswordHash, FullName, Bio, ProfilePictureUrl, Institution |
-| `Post` | Id, Content, Type (Regular/Event), ImageUrl, EventDate, LikesCount, CommentsCount, AuthorId |
-| `UserActivity` | Id, UserId, ActivityType, Description, CreatedAt |
+La base de datos relacional esta definida bajo los siguientes campos:
+_
+| **Entidad**        | **Campos Clave**                                 | **Importancia en Kairos**                                                                                                                |
+| ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **User**           | `Id`, `Role`, `Institution`, `PasswordHash`      | El corazón del sistema. Maneja tres perfiles (estudiante, empresa, backoffice) bajo una misma estructura, permitiendo una red unificada. |
+| **Post**           | `Content`, `Type`, `LikesCount`, `CommentsCount` | Motor de interacción social. Permite a los estudiantes mostrar sus proyectos y a los liceos publicar eventos técnicos.                   |
+| **JobPosting**     | `Title`, `Location`, `Status`, `CompanyId`       | Representa las ofertas de práctica o empleo. Es el puente directo entre la necesidad de la empresa y el talento técnico.                 |
+| **JobApplication** | `Status`, `CvUrl`, `JobId`, `ApplicantId`        | Gestiona el proceso de postulación. Almacena el link al CV generado automáticamente, facilitando la revisión para la empresa.            |
+| **UserActivity**   | `ActivityType`, `Description`, `UserId`          | **Diferenciador clave:** Registra acciones (como "Post creado" o "Práctica aplicada") para alimentar el generador de CV automático.      |
+| **Follow**         | `FollowerId`, `FollowedId`                       | Habilita la red de contactos, permitiendo que estudiantes sigan a empresas de su interés y viceversa.                                    |
+| **Comment / Like** | `Content`, `PostId`, `AuthorId`                  | Fomentan el engagement y la validación social de los proyectos publicados por los alumnos.                                               |
+##### ¿Por qué no normalizamos al 100%?
+
+Con 600 usuarios, la diferencia de performance entre 3FN estricta
+y lo que tenemos es imperceptible. Lo que sí hicimos:
+
+- **Contadores desnormalizados** (`LikesCount`, `CommentsCount` en Post):
+  evitan un `COUNT(*)` en cada carga del feed.
+- **Enums como string** en la BD: más fácil de leer en MySQL Workbench
+  y de debuggear cuando algo falla.
+- **Índices compuestos** en las columnas que se usan juntas en las queries
+  más frecuentes (feed, actividades de usuario, postulaciones por oferta).
+
+##### ¿Por qué clave compuesta en Like y Follow?
+
+La BD garantiza a nivel de constraint que un usuario no puede
+dar like dos veces o seguirse a sí mismo. No depende de que
+el código lo valide correctamente — MySQL lo rechaza directamente.
 
 ### Application — CQRS handlers implementados
 
