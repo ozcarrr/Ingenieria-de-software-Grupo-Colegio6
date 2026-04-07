@@ -1,17 +1,30 @@
 namespace Kairos.Domain.Entities;
+// ── User ─────────────────────────────────────────────────────
+// Representa a cualquier persona en la plataforma
+// (estudiante, empresa o backoffice del liceo).
 
 public class User
 {
-    public int Id { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public string? Bio { get; set; }
-    public string? ProfilePictureUrl { get; set; }
-    public string? Institution { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int    Id                { get; set; }
+    public string Username          { get; set; } = string.Empty;
+    public string Email             { get; set; } = string.Empty;
+    public string PasswordHash      { get; set; } = string.Empty;
+    public string FullName          { get; set; } = string.Empty;
+    public string? Bio              { get; set; }
+    public string? ProfilePictureUrl{ get; set; }
+    public string? Institution      { get; set; }  // Liceo o empresa
+    public string? Role             { get; set; }  // "student" | "company" | "backoffice"
+    public DateTime CreatedAt       { get; set; } = DateTime.UtcNow;
 
-    public ICollection<Post> Posts { get; set; } = [];
-    public ICollection<UserActivity> Activities { get; set; } = [];
+    // Navegación (EF Core las usa para construir los JOINs)
+    public ICollection<Post>            Posts           { get; set; } = [];
+    public ICollection<UserActivity>    Activities      { get; set; } = [];
+    public ICollection<Comment>         Comments        { get; set; } = [];
+    public ICollection<Like>            Likes           { get; set; } = [];
+    public ICollection<JobPosting>      JobPostings     { get; set; } = [];
+    public ICollection<JobApplication>  Applications    { get; set; } = [];
+
+    // Seguidores / seguidos  (self-referencing many-to-many)
+    public ICollection<Follow>          Followers       { get; set; } = [];
+    public ICollection<Follow>          Following       { get; set; } = [];
 }
