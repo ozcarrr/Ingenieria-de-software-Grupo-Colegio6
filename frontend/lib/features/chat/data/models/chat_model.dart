@@ -22,10 +22,13 @@ class ChatMessage {
     required this.text,
     required this.timestamp,
     required this.isMine,
+    this.senderId = '',
   });
 
   final String id;
   final String text;
   final String timestamp;
   final bool isMine;
+  /// The user ID of the sender. Used to determine isMine when received from hub.
+  final String senderId;
 }

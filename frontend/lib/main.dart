@@ -65,7 +65,7 @@ class _KairosAppState extends State<KairosApp> {
       case 2:
         return const NetworkPage();
       case 3:
-        return const ChatsPage();
+        return ChatsPage(currentUser: user);
       case 4:
         return ProfilePage(currentUser: user);
       default:
