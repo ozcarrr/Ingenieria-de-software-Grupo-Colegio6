@@ -5,6 +5,7 @@
 
 using Kairos.Application.Common.Interfaces;
 using Kairos.Infrastructure.Data;
+using Kairos.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,18 @@ public static class DependencyInjection
         // Cuando algo pide IApplicationDbContext, DI entrega ApplicationDbContext
         services.AddScoped<IApplicationDbContext>(
             provider => provider.GetRequiredService<ApplicationDbContext>());
+
+        // JWT
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Section));
+        services.AddScoped<IJwtService, JwtService>();
+
+        // Azure Blob Storage
+        services.Configure<AzureBlobOptions>(configuration.GetSection(AzureBlobOptions.Section));
+        services.AddScoped<IStorageService, StorageService>();
+
+        // PDF generation
+        services.AddScoped<ICurriculumGenerator, CurriculumGenerator>();
+        services.AddScoped<IReportGeneratorService, ReportGeneratorService>();
 
         return services;
     }

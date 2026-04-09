@@ -113,6 +113,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<SocialHub>("/hubs/social");
 
 app.Run();

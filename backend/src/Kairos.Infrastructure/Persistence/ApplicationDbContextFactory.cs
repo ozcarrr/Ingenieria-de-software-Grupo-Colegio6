@@ -19,8 +19,8 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         // Esta connection string solo se usa para generar las migraciones.
         // Cuando la app corre de verdad, usa la de appsettings.json.
         optionsBuilder.UseMySql(
-            "Server=localhost;Port=3306;Database=kairos;User=root;Password=root;",
-            ServerVersion.AutoDetect("Server=localhost;Port=3306;Database=kairos_local;User=usuario;Password=tupassword;")
+            "Server=localhost;Port=3306;Database=kairos;User=kairos_user;Password=kairos2026;",
+            ServerVersion.AutoDetect("Server=localhost;Port=3306;Database=kairos;User=kairos_user;Password=kairos2026;")
         );
 
         return new ApplicationDbContext(optionsBuilder.Options);
