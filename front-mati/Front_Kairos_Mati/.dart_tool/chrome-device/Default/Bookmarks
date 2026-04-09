@@ -1,0 +1,127 @@
+{
+   "checksum": "9e116954ccb2c50e9b7713c5d78ae5eb",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "children": [ {
+               "date_added": "13308678180897751",
+               "date_last_used": "0",
+               "guid": "8acf5533-93ef-439f-9b7c-04c1aa48fc7d",
+               "id": "12",
+               "name": "Lenovo Support",
+               "show_icon": false,
+               "source": "sync",
+               "type": "url",
+               "url": "http://support.lenovo.com/",
+               "visit_count": 0
+            }, {
+               "date_added": "13308678180913330",
+               "date_last_used": "0",
+               "guid": "069d65a6-07e5-42c2-9ed8-80a8919eb3b4",
+               "id": "13",
+               "name": "Lenovo",
+               "show_icon": false,
+               "source": "sync",
+               "type": "url",
+               "url": "http://www.lenovo.com/",
+               "visit_count": 0
+            } ],
+            "date_added": "13309404491622912",
+            "date_last_used": "0",
+            "date_modified": "13309404491622912",
+            "guid": "351e547f-dcff-41af-90bb-84bff7ac4251",
+            "id": "11",
+            "name": "Lenovo",
+            "source": "unknown",
+            "type": "folder"
+         }, {
+            "date_added": "13420172552150964",
+            "date_last_used": "0",
+            "guid": "97d4c032-e6ec-4885-9ed9-9c465cfa1a6f",
+            "id": "10",
+            "name": "Adobe Acrobat Pro DC for Samsung",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "http://www.adobe.com/go/samsung_apdc",
+            "visit_count": 0
+         }, {
+            "date_added": "13420172552150279",
+            "date_last_used": "0",
+            "guid": "aa09b994-fa28-4687-91e5-866dc2f6d39e",
+            "id": "9",
+            "name": "Adobe Creative Cloud All Apps for Samsung",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "http://www.adobe.com/go/samsung_cci",
+            "visit_count": 0
+         }, {
+            "date_added": "13420172552149582",
+            "date_last_used": "0",
+            "guid": "8249f093-0f7e-4f06-ad70-fdfedf9006fd",
+            "id": "8",
+            "name": "Adobe Premiere Pro CC for Samsung",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "http://www.adobe.com/go/samsung_ppcc",
+            "visit_count": 0
+         }, {
+            "date_added": "13420172552148615",
+            "date_last_used": "0",
+            "guid": "b0a28fa2-e3a0-4409-af6b-950edb01cdf5",
+            "id": "7",
+            "name": "McAfee LiveSafe - Benefits for Samsung PC users",
+            "show_icon": false,
+            "source": "oem_preload",
+            "type": "url",
+            "url": "https://www.mcafee.com/consumer/v/samsung-pc.html",
+            "visit_count": 0
+         } ],
+         "date_added": "13420172551906185",
+         "date_last_used": "0",
+         "date_modified": "13420172552150964",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Barra de favoritos",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "other": {
+         "children": [  ],
+         "date_added": "13420172551906185",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Otros favoritos",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13420172551906185",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Favoritos móviles",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "workspaces_v2": {
+         "children": [  ],
+         "date_added": "13420172551906185",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "75aa6670-344f-549d-b742-660f029506ab",
+         "id": "5",
+         "name": "Áreas de trabajo",
+         "source": "unknown",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "CkEKHgiIgQISCCLV5W+dAQAAKg4QABgBIAAoBjAAOABAABIAKhhMNVBzRExVNGwvTFlLL3JUbXpoQVVBPT1IA6AGDBKOAQgDEokBChxuamdEdTg4ZUNydlhwODZwRDdmSEdjcUZwODg9EiQ3OTZmYTNlNS0xNGJhLTViNjAtYmE3Yi04N2RlMDU4NjE3OGQYACAAKAAwn/3JpKguOPTDwPSDMED0w8D0gzBKHHl6TkIwMWNuNTRBN2NSVTB1VCsvUGdtVHRVbz1aAGUAAAAAwj4CYAASrAEIDRKnAQocUzFnb2pNMlRrdWdETjhpNE5sUTdFa1dpMVo4PRIkMDY5ZDY1YTYtMDdlNS00MmMyLTllZDgtODBhODkxOWViM2I0GAAgACgAMOPk9ay6MDiK5vWsujBAiub1rLowShxheWord3RWbENDMXA2eExERGUvK1JDOVhCY2s9Wh4iHHh2a21CWGZOeXBkeGRHeWJlQXFPajdHK0lUVT1lAAAAAMI+AmAFEqwBCAwSpwEKHE9hTUYwaVZKc2dnaDJpbzVzZFU4WEY3dWtrQT0SJDhhY2Y1NTMzLTkzZWYtNDM5Zi05YjdjLTA0YzFhYTQ4ZmM3ZBgAIAAoADDj5PWsujA46uX1rLowQOrl9ay6MEocYm9nMEt0bVM2NGx1Vis2VjdIcTFTbkxwemdzPVoeIhxlUk01cmtSekVMZkZiUlRXNmJsemRpUTYvNkk9ZQAAAADCPgJgBRKOAQgCEokBChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EiQxMWFjZDNjMi1kZWFhLTU0NjMtOGFhZS1iN2QyODIzYmVhZWQYACAAKAAwm/3JpKguOKbDwPSDMECmw8D0gzBKHG9QVmtod0JSYlY2NUtDV1IyK0lPTkhXb091OD1aAGUAAAAAwj4CYAASrAEICxKnAQocMjU2UzYyRS84em9LRjF1Y2dNS2hMWnNWYjJnPRIkMzUxZTU0N2YtZGNmZi00MWFmLTkwYmItODRiZmY3YWM0MjUxGAAgACgAMOPk9ay6MDis5fWsujBArOX1rLowShxSQTBZYm1Tc1NFR2RoLzJ6WExMQ3BCdXhjaEk9Wh4iHEx6ZEdrM0FMOWhUekY4OXUxalR6dDdrYUp2ST1lAAAAAMI+AmAAEo4BCAUSiQEKHHdSQnJaTCs2UEE5YXZLZ2pOUDdKWERMY2Z2cz0SJGQyMzdmY2ZhLTA1OTgtNTFhMy1iNmZkLTg5NWJjMjRlYmRkNBgAIAAoADCAtMessTM4sbbHrLEzQLG2x6yxM0ocbm14NjVzUUR2eEk4VGdFZXYrQStudHRvU240PVoAZQAAAADCPgJgABKOAQgBEokBChx5eEovNmZ2a2VjcjdrcDVFUXpCNHRXTHBkYkU9EiQ3ZjY4N2EwZC05OGFlLTVmNjItOWJkNy1jN2U1OTgwZjZlYzkYACAAKAAwmv3JpKguOPfCwPSDMED3wsD0gzBKHGFSQ1dMZ2hGOWI1SW5xS0lEdnVKL2p2UWtGYz1aAGUAAAAAwj4CYAAwADgA",
+   "version": 1
+}

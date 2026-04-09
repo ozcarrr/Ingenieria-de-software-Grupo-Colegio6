@@ -1,45 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../../../core/api/api_client.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/models/user_profile.dart';
+import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/widgets/k_card.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, required this.currentUser});
+
+  final UserProfile currentUser;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final _api = ApiClient();
+  final _api    = ApiClient();
   final _picker = ImagePicker();
 
-  bool _isEditing = false;
-  bool _isUploadingAvatar = false;
-  bool _isDownloadingReport = false;
-  String? _profilePictureUrl;
-
-  // Form controllers — pre-filled with mock data
-  final _nameController = TextEditingController(text: 'Matías Silva');
-  final _titleController =
-      TextEditingController(text: 'Estudiante de Mecatrónica - 4° Medio');
-  final _bioController = TextEditingController(
-    text:
-        'Estudiante técnico apasionado por la automatización y los sistemas CNC. '
-        'Busco práctica profesional en el área de mantenimiento industrial.',
-  );
-  final _locationController = TextEditingController(text: 'Lo Espejo, Santiago');
-  final _emailController = TextEditingController(text: 'matias.silva@liceo.cl');
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _titleController.dispose();
-    _bioController.dispose();
-    _locationController.dispose();
-    _emailController.dispose();
-    super.dispose();
-  }
+  bool    _isUploadingAvatar  = false;
+  bool    _isDownloadingReport = false;
+  String? _uploadedAvatarUrl;
 
   Future<void> _pickAndUploadAvatar() async {
     final XFile? image = await _picker.pickImage(
@@ -53,7 +35,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isUploadingAvatar = true);
     try {
       final result = await _api.uploadFile(image.path, 'image/jpeg');
-      setState(() => _profilePictureUrl = result['cdnUrl'] as String?);
+      setState(() => _uploadedAvatarUrl = result['cdnUrl'] as String?);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Foto de perfil actualizada.')),
@@ -73,7 +55,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _downloadReport() async {
     setState(() => _isDownloadingReport = true);
     try {
-      final now = DateTime.now();
+      final now   = DateTime.now();
       final bytes = await _api.downloadReport(month: now.month, year: now.year);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,581 +75,523 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
+    final user = widget.currentUser;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Column(
-              children: [
-                _ProfileHeader(
-                  isEditing: _isEditing,
-                  onToggleEdit: () => setState(() => _isEditing = !_isEditing),
-                  onSave: () => setState(() => _isEditing = false),
-                  profilePictureUrl: _profilePictureUrl,
-                  isUploadingAvatar: _isUploadingAvatar,
-                  onPickAvatar: _pickAndUploadAvatar,
-                ),
-                const SizedBox(height: 16),
-                _AboutCard(
-                  isEditing: _isEditing,
-                  nameController: _nameController,
-                  titleController: _titleController,
-                  bioController: _bioController,
-                  locationController: _locationController,
-                  emailController: _emailController,
-                ),
-                const SizedBox(height: 16),
-                const _SkillsCard(),
-                const SizedBox(height: 16),
-                const _ExperienceCard(),
-                const SizedBox(height: 16),
-                _ReportCard(
-                  isLoading: _isDownloadingReport,
-                  onDownload: _downloadReport,
-                ),
+          constraints: const BoxConstraints(maxWidth: 1080),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(user),
+              const SizedBox(height: 12),
+              if (user.socioemotionalTest != null) ...[
+                _buildSocioemotional(user.socioemotionalTest!),
+                const SizedBox(height: 12),
               ],
-            ),
+              _buildAbout(user),
+              const SizedBox(height: 12),
+              _buildSkills(user),
+              const SizedBox(height: 12),
+              _buildExperience(),
+              const SizedBox(height: 12),
+              _buildCertifications(),
+              const SizedBox(height: 12),
+              _buildProjects(),
+              const SizedBox(height: 12),
+              _buildReportCard(),
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-class _ProfileHeader extends StatelessWidget {
-  final bool isEditing;
-  final VoidCallback onToggleEdit;
-  final VoidCallback onSave;
-  final String? profilePictureUrl;
-  final bool isUploadingAvatar;
-  final VoidCallback onPickAvatar;
+  // ── Header ──────────────────────────────────────────────────────────────────
 
-  const _ProfileHeader({
-    required this.isEditing,
-    required this.onToggleEdit,
-    required this.onSave,
-    this.profilePictureUrl,
-    this.isUploadingAvatar = false,
-    required this.onPickAvatar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
+  Widget _buildHeader(UserProfile user) {
+    final avatarUrl = _uploadedAvatarUrl ?? user.avatarUrl;
+    return KCard(
+      padding: EdgeInsets.zero,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner
-          Container(height: 100, color: AppColors.primary),
-          // Avatar + actions
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (isEditing)
-                      ElevatedButton.icon(
-                        onPressed: onSave,
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Guardar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      )
-                    else
-                      OutlinedButton.icon(
-                        onPressed: onToggleEdit,
-                        icon: const Icon(Icons.edit_outlined, size: 16),
-                        label: const Text('Editar perfil'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+          Container(
+            height: 130,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x260F766E), Color(0x1000B5AD)],
               ),
-              Positioned(
-                top: -46,
-                left: 16,
-                child: Stack(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(17),
+                topRight: Radius.circular(17),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.surface, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 44,
-                        backgroundColor: const Color(0xFFB0BEC5),
-                        backgroundImage: profilePictureUrl != null
-                            ? NetworkImage(profilePictureUrl!)
-                            : null,
-                        child: profilePictureUrl == null
-                            ? const Icon(Icons.person, color: Colors.white, size: 40)
-                            : null,
+                    Transform.translate(
+                      offset: const Offset(0, -52),
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 52,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 47,
+                              backgroundImage: NetworkImage(avatarUrl),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: GestureDetector(
+                              onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: KairosPalette.accent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                                child: _isUploadingAvatar
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(6),
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.camera_alt_rounded,
+                                        color: Colors.white, size: 14),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    if (isEditing)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: isUploadingAvatar ? null : onPickAvatar,
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: const BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                            child: isUploadingAvatar
-                                ? const Padding(
-                                    padding: EdgeInsets.all(5),
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.camera_alt, color: Colors.white, size: 14),
-                          ),
-                        ),
-                      ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: const Text('Editar perfil'),
+                    ),
                   ],
                 ),
-              ),
-            ],
+                Text(user.name,
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(user.title,
+                    style: const TextStyle(
+                        color: KairosPalette.secondary, fontSize: 16)),
+                if (user.specialization != null) ...[
+                  const SizedBox(height: 8),
+                  Chip(
+                    label: Text('Especializacion: ${user.specialization}'),
+                    side: BorderSide.none,
+                    backgroundColor: KairosPalette.muted,
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 8,
+                  children: [
+                    _meta(Icons.pin_drop_rounded, user.location),
+                    _meta(Icons.group_rounded, '${user.connections} conexiones'),
+                    if (user.graduationYear != null)
+                      _meta(Icons.school_rounded, 'Egreso ${user.graduationYear}'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _counter('${user.connections}', 'Conexiones'),
+                    _counter('23', 'Visitas perfil'),
+                    _counter('8', 'Publicaciones'),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-class _AboutCard extends StatelessWidget {
-  final bool isEditing;
-  final TextEditingController nameController;
-  final TextEditingController titleController;
-  final TextEditingController bioController;
-  final TextEditingController locationController;
-  final TextEditingController emailController;
+  // ── Socioemotional ──────────────────────────────────────────────────────────
 
-  const _AboutCard({
-    required this.isEditing,
-    required this.nameController,
-    required this.titleController,
-    required this.bioController,
-    required this.locationController,
-    required this.emailController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(20),
+  Widget _buildSocioemotional(SocioemotionalTest test) {
+    return KCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Información',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          const Row(
+            children: [
+              Icon(Icons.psychology_rounded, color: KairosPalette.primary),
+              SizedBox(width: 8),
+              Text('Evaluacion socioemocional',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+            ],
           ),
-          const SizedBox(height: 16),
-          if (isEditing) ...[
-            _EditField(label: 'Nombre completo', controller: nameController),
-            const SizedBox(height: 12),
-            _EditField(label: 'Título / Especialidad', controller: titleController),
-            const SizedBox(height: 12),
-            _EditField(
-              label: 'Sobre mí',
-              controller: bioController,
-              maxLines: 4,
+          const SizedBox(height: 12),
+          if (test.completed) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: KairosPalette.muted,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text('Test completado: ${test.completedDate ?? '-'}'),
             ),
             const SizedBox(height: 12),
-            _EditField(label: 'Ubicación', controller: locationController),
-            const SizedBox(height: 12),
-            _EditField(
-              label: 'Correo',
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-            ),
+            ...test.skills.map((skill) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(skill.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
+                            if (skill.badge)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 8),
+                                child: Icon(Icons.star_rounded,
+                                    size: 16, color: KairosPalette.accent),
+                              ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: LinearProgressIndicator(
+                          value: skill.level / 5,
+                          minHeight: 9,
+                          borderRadius: BorderRadius.circular(20),
+                          backgroundColor: KairosPalette.border,
+                          color: KairosPalette.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('${skill.level}/5'),
+                    ],
+                  ),
+                )),
           ] else ...[
-            Text(
-              nameController.text,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            const Text(
+                'Test pendiente. Realizar el test puede mejorar la visibilidad de tu perfil.'),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: KairosPalette.accent),
+              onPressed: () {},
+              child: const Text('Realizar test ahora'),
             ),
-            const SizedBox(height: 4),
-            Text(
-              titleController.text,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              bioController.text,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textPrimary,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _InfoRow(
-              icon: Icons.location_on_outlined,
-              text: locationController.text,
-            ),
-            const SizedBox(height: 6),
-            _InfoRow(icon: Icons.email_outlined, text: emailController.text),
           ],
         ],
       ),
     );
   }
-}
 
-class _EditField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final int maxLines;
-  final TextInputType keyboardType;
+  // ── About ────────────────────────────────────────────────────────────────────
 
-  const _EditField({
-    required this.label,
-    required this.controller,
-    this.maxLines = 1,
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          keyboardType: keyboardType,
-          style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.background,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.divider),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.divider),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide:
-                  const BorderSide(color: AppColors.primary, width: 1.5),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _InfoRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: AppColors.textTertiary),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _SkillsCard extends StatelessWidget {
-  const _SkillsCard();
-
-  static const _skills = [
-    'Soldadura MIG/TIG',
-    'AutoCAD',
-    'PLC Siemens',
-    'Mantenimiento Industrial',
-    'CNC',
-    'Electrónica',
-    'Neumática',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(20),
+  Widget _buildAbout(UserProfile user) {
+    return KCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Habilidades',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Icon(Icons.add, color: AppColors.primary, size: 20),
-            ],
-          ),
-          const SizedBox(height: 14),
+          const Text('Acerca de mi',
+              style:
+                  TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Text(user.bio, style: const TextStyle(height: 1.45)),
+        ],
+      ),
+    );
+  }
+
+  // ── Skills ───────────────────────────────────────────────────────────────────
+
+  Widget _buildSkills(UserProfile user) {
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Habilidades tecnicas',
+              style:
+                  TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _skills
-                .map(
-                  (s) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      s,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
+            children: user.skills
+                .map((skill) =>
+                    Chip(label: Text(skill), side: BorderSide.none))
+                .toList(growable: false),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Agregar habilidad'),
           ),
         ],
       ),
     );
   }
-}
 
-class _ExperienceCard extends StatelessWidget {
-  const _ExperienceCard();
+  // ── Experience ───────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildExperience() {
+    const exp = [
+      (
+        'Proyecto de Robotica - Competencia Regional',
+        'Liceo Tecnico Cardenal Jose Maria Caro',
+        'La Florida, Santiago  2025-2026',
+        'Diseno y programacion de robot autonomo de clasificacion. Primer lugar regional.'
       ),
-      padding: const EdgeInsets.all(20),
+      (
+        'Ayudante de Laboratorio',
+        'Liceo Tecnico Cardenal Jose Maria Caro',
+        'La Florida, Santiago  2025',
+        'Apoyo en mantencion y preparacion de equipos de laboratorio de mecatronica.'
+      ),
+    ];
+
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Experiencia',
+              style:
+                  TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          ...exp.map(
+            (e) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(
+                backgroundColor: KairosPalette.muted,
+                child: Icon(Icons.work_rounded),
+              ),
+              title: Text(e.$1,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text('${e.$2}\n${e.$3}\n${e.$4}'),
+              isThreeLine: true,
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Agregar experiencia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Certifications ───────────────────────────────────────────────────────────
+
+  Widget _buildCertifications() {
+    const certs = [
+      ('Curso de Arduino Avanzado', 'INACAP  2025'),
+      ('Certificacion en Impresion 3D', 'FabLab Santiago  2025'),
+      ('Programacion en C++', 'Coursera  2024'),
+    ];
+
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Certificaciones y formacion',
+              style:
+                  TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          ...certs.map(
+            (c) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(
+                backgroundColor: KairosPalette.muted,
+                child: Icon(Icons.school_rounded),
+              ),
+              title: Text(c.$1,
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(c.$2),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Agregar certificacion'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Projects ─────────────────────────────────────────────────────────────────
+
+  Widget _buildProjects() {
+    const projects = [
+      (
+        'Robot Clasificador Autonomo',
+        'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=900',
+        'Robot que clasifica objetos por color y tamano usando sensores y Arduino.'
+      ),
+      (
+        'Sistema de Riego Automatizado',
+        'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=900',
+        'Control de riego por humedad del suelo y temperatura para invernadero.'
+      ),
+    ];
+
+    return KCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Proyectos destacados',
+              style:
+                  TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cross = constraints.maxWidth > 800 ? 2 : 1;
+              return GridView.builder(
+                itemCount: projects.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cross,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 1.2,
+                ),
+                itemBuilder: (context, index) {
+                  final p = projects[index];
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: KairosPalette.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(15),
+                              topRight: Radius.circular(15),
+                            ),
+                            child: Image.network(p.$2,
+                                width: double.infinity, fit: BoxFit.cover),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p.$1,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 4),
+                              Text(p.$3,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Report ───────────────────────────────────────────────────────────────────
+
+  Widget _buildReportCard() {
+    return KCard(
+      borderColor: KairosPalette.primary.withValues(alpha: 0.4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Formación',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Icon(Icons.add, color: AppColors.primary, size: 20),
+              Icon(Icons.picture_as_pdf_rounded, color: KairosPalette.primary),
+              SizedBox(width: 8),
+              Text('Reporte de actividad',
+                  style:
+                      TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
             ],
           ),
-          const SizedBox(height: 16),
-          _ExperienceItem(
-            icon: Icons.school_outlined,
-            title: 'Técnico en Mecatrónica',
-            subtitle: 'Liceo Técnico Cardenal José María Caro',
-            period: '2022 — Actualidad',
+          const SizedBox(height: 8),
+          const Text(
+              'Descarga un resumen PDF de tu participacion social del mes actual.',
+              style: TextStyle(color: KairosPalette.secondary)),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isDownloadingReport ? null : _downloadReport,
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: KairosPalette.primary),
+              icon: _isDownloadingReport
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Descargar reporte mensual'),
+            ),
           ),
         ],
       ),
     );
   }
-}
 
-class _ExperienceItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String period;
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  const _ExperienceItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.period,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _meta(IconData icon, String value) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: AppColors.primary, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                period,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textTertiary,
-                ),
-              ),
-            ],
-          ),
-        ),
+        Icon(icon, size: 16, color: KairosPalette.secondary),
+        const SizedBox(width: 4),
+        Text(value,
+            style: const TextStyle(color: KairosPalette.secondary)),
       ],
     );
   }
-}
 
-// ── Report Card ────────────────────────────────────────────────────────────────
-
-class _ReportCard extends StatelessWidget {
-  final bool isLoading;
-  final VoidCallback onDownload;
-
-  const _ReportCard({required this.isLoading, required this.onDownload});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(20),
+  Widget _counter(String value, String label) {
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Reporte de actividad',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Descarga un resumen PDF de tu participación social del mes actual.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
-              onPressed: isLoading ? null : onDownload,
-              icon: isLoading
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-              label: const Text('Descargar reporte mensual'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  color: KairosPalette.primary)),
+          Text(label,
+              style: const TextStyle(color: KairosPalette.secondary)),
         ],
       ),
     );

@@ -1,172 +1,359 @@
 import 'package:flutter/material.dart';
-import '../../../../core/api/api_client.dart';
+
+import '../../../../core/data/mock_data.dart';
+import '../../../../core/models/user_profile.dart';
 import '../../../../core/services/social_hub_service.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../chat/presentation/pages/chats_page.dart';
-import '../../../jobs/presentation/pages/jobs_page.dart';
-import '../../../network/presentation/pages/network_page.dart';
-import '../../../profile/presentation/pages/profile_page.dart';
-import '../../data/models/post_model.dart';
-import '../widgets/feed_post_card.dart';
-import '../widgets/post_creator_card.dart';
-import '../widgets/profile_card.dart';
-import '../widgets/right_sidebar.dart';
-import '../widgets/top_nav_bar.dart';
+import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/widgets/k_card.dart';
+import '../../../../core/widgets/post_card.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, required this.currentUser, required this.role});
+
+  final UserProfile currentUser;
+  final UserRole role;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedNavIndex = 0;
+  final TextEditingController _postController = TextEditingController();
 
-  // ── Live updates banner ────────────────────────────────────────────────────
-  // SocialHubService is instantiated once the user has a valid JWT.
-  // For now it's null; call _connectHub(token) after login.
-  SocialHubService? _hub;
-  String? _liveNotification;
-
-  void _connectHub(String jwt) {
-    _hub = SocialHubService(jwt);
-    _hub!.connect();
-
-    _hub!.onLike.listen((data) {
-      if (!mounted) return;
-      setState(() => _liveNotification = '❤️ ${data['likedByName']} dio like a tu publicación.');
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted) setState(() => _liveNotification = null);
-      });
-    });
-
-    _hub!.onFollow.listen((data) {
-      if (!mounted) return;
-      setState(() => _liveNotification = '👤 ${data['followerName']} te sigue ahora.');
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted) setState(() => _liveNotification = null);
-      });
-    });
-  }
+  // ── SignalR live updates ───────────────────────────────────────────────────
+  // Call connectHub(jwt) from the parent after successful login.
+  SocialHubService? hub;
 
   @override
   void dispose() {
-    _hub?.dispose();
+    _postController.dispose();
+    hub?.dispose();
     super.dispose();
   }
 
-  static const _mockPosts = [
-    PostModel(
-      id: '1',
-      authorName: 'Roberto Castillo',
-      authorTitle: 'Jefe UTP - Liceo Técnico Cardenal José María Caro',
-      authorBadge: 'STAFF',
-      timeAgo: 'Hace 3 horas',
-      content:
-          '🎉 FERIA DE PRÁCTICAS 2026 🎉\n\n'
-          'El próximo viernes 28 de marzo realizaremos nuestra tradicional Feria de '
-          'Prácticas Profesionales. Más de 20 empresas estarán presentes buscando '
-          'estudiantes de 4° medio para sus programas de práctica.\n\n'
-          '¡No falten! Es una gran oportunidad para conectar con empresas y asegurar tu '
-          'práctica profesional.',
-      type: PostType.event,
-      eventDate: '28 DE MARZO, 9:00 HRS',
-      details: ['📍 Gimnasio del Liceo', '🕐 9:00 - 14:00 hrs'],
-    ),
-  ];
-
-  Widget get _currentPage => switch (_selectedNavIndex) {
-        1 => const JobsPage(),
-        2 => const NetworkPage(),
-        3 => const ChatsPage(),
-        4 => const ProfilePage(),
-        _ => _FeedView(posts: _mockPosts),
-      };
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: TopNavBar(
-        selectedIndex: _selectedNavIndex,
-        onNavItemTapped: (i) => setState(() => _selectedNavIndex = i),
-      ),
-      body: Column(
+    final width = MediaQuery.sizeOf(context).width;
+    final desktop = width > 1240;
+    final canCreateEvent    = widget.role == UserRole.staff   || widget.role == UserRole.company;
+    final canCreateJobOffer = widget.role == UserRole.company;
+
+    if (desktop) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 280, child: _leftSidebar()),
+            const SizedBox(width: 16),
+            Expanded(
+                child: _mainContent(
+                    canCreateEvent: canCreateEvent,
+                    canCreateJobOffer: canCreateJobOffer)),
+            const SizedBox(width: 16),
+            SizedBox(
+                width: 300,
+                child: _rightSidebar(canCreateJobOffer: canCreateJobOffer)),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
         children: [
-          // ── Live notification banner ─────────────────────────────────────
-          if (_liveNotification != null)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              color: AppColors.primary.withOpacity(0.9),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Text(
-                _liveNotification!,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          Expanded(child: _currentPage),
+          _leftSidebar(),
+          const SizedBox(height: 12),
+          _mainContent(
+              canCreateEvent: canCreateEvent,
+              canCreateJobOffer: canCreateJobOffer),
+          const SizedBox(height: 12),
+          _rightSidebar(canCreateJobOffer: canCreateJobOffer),
         ],
       ),
     );
   }
-}
 
-class _FeedView extends StatelessWidget {
-  final List<PostModel> posts;
-
-  const _FeedView({required this.posts});
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 260,
-                  child: ProfileCard(
-                    name: 'Matías Silva',
-                    subtitle: 'Estudiante de Mecatrónica - 4° Medio',
-                    connections: 45,
-                    views: 89,
-                    inDemandSkills: const [
-                      'Soldadura',
-                      'PLC',
-                      'AutoCAD',
-                      'Mantenimiento',
-                      'CNC',
-                    ],
+  Widget _leftSidebar() {
+    return Column(
+      children: [
+        KCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 86,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [KairosPalette.primary, KairosPalette.accent]),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(17),
+                    topRight: Radius.circular(17),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    children: [
-                      const PostCreatorCard(),
-                      const SizedBox(height: 12),
-                      ...posts.map(
-                        (p) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: FeedPostCard(post: p),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Transform.translate(
+                      offset: const Offset(0, -38),
+                      child: CircleAvatar(
+                        radius: 38,
+                        backgroundColor: Colors.white,
+                        child: CircleAvatar(
+                          radius: 34,
+                          backgroundImage:
+                              NetworkImage(widget.currentUser.avatarUrl),
                         ),
                       ),
-                    ],
+                    ),
+                    Text(widget.currentUser.name,
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900)),
+                    Text(widget.currentUser.title,
+                        style:
+                            const TextStyle(color: KairosPalette.secondary)),
+                    const SizedBox(height: 14),
+                    _statRow('Conexiones',
+                        widget.currentUser.connections.toString()),
+                    _statRow('Vistas', '89'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.trending_up_rounded, color: KairosPalette.primary),
+                  SizedBox(width: 8),
+                  Text('En demanda',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: trendingSkills
+                    .map((skill) => Chip(
+                          label: Text(skill,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                          side: BorderSide.none,
+                          backgroundColor: KairosPalette.muted,
+                        ))
+                    .toList(growable: false),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _mainContent(
+      {required bool canCreateEvent, required bool canCreateJobOffer}) {
+    return Column(
+      children: [
+        KCard(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundImage:
+                        NetworkImage(widget.currentUser.avatarUrl),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _postController,
+                      maxLines: 3,
+                      minLines: 3,
+                      decoration: const InputDecoration(
+                        hintText: 'Que quieres compartir hoy?',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ghostAction(Icons.image_rounded, 'Imagen'),
+                        _ghostAction(Icons.videocam_rounded, 'Video'),
+                        if (canCreateEvent)
+                          _ghostAction(
+                              Icons.calendar_month_rounded, 'Evento'),
+                        if (canCreateJobOffer)
+                          ElevatedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.work_rounded, size: 18),
+                            label: const Text('Oferta laboral'),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: KairosPalette.accent),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {},
+                    child: const Text('Publicar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...posts.map((post) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: PostCard(post: post),
+            )),
+      ],
+    );
+  }
+
+  Widget _rightSidebar({required bool canCreateJobOffer}) {
+    return Column(
+      children: [
+        KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.tips_and_updates_rounded,
+                      color: KairosPalette.primary),
+                  SizedBox(width: 8),
+                  Text('Consejos del dia',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _tip('Completa tu perfil para recibir mas visitas.'),
+              _tip('Agrega certificaciones y proyectos para destacar.'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        KCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.build_rounded, color: KairosPalette.primary),
+                  SizedBox(width: 8),
+                  Text('Oficios destacados',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...highlightedTrades.asMap().entries.map(
+                    (entry) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(entry.value),
+                      trailing: Text(
+                        '${120 - (entry.key * 15)} ofertas',
+                        style: const TextStyle(
+                            color: KairosPalette.primary,
+                            fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+        if (canCreateJobOffer) ...[
+          const SizedBox(height: 12),
+          KCard(
+            gradient: const LinearGradient(
+              colors: [Color(0x1A00B5AD), Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderColor: KairosPalette.accent,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Publica una oferta',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 18)),
+                const SizedBox(height: 6),
+                const Text(
+                    'Encuentra talento tecnico para tu empresa.'),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: KairosPalette.accent),
+                    onPressed: () {},
+                    child: const Text('Crear oferta laboral'),
                   ),
                 ),
-                const SizedBox(width: 16),
-                const SizedBox(width: 260, child: RightSidebar()),
               ],
             ),
           ),
-        ),
+        ],
+      ],
+    );
+  }
+
+  Widget _statRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(label,
+              style: const TextStyle(color: KairosPalette.secondary)),
+          const Spacer(),
+          Text(value,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: KairosPalette.primary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _tip(String text) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: KairosPalette.muted),
+      child: Text(text),
+    );
+  }
+
+  Widget _ghostAction(IconData icon, String label) {
+    return OutlinedButton.icon(
+      onPressed: () {},
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: KairosPalette.secondary,
+        side: const BorderSide(color: KairosPalette.border),
       ),
     );
   }

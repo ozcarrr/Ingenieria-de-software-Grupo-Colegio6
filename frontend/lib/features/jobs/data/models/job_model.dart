@@ -1,29 +1,36 @@
-enum JobType { internship, fullTime, partTime }
+enum OpportunityType { practice, job }
+
+extension OpportunityTypeLabel on OpportunityType {
+  String get label => switch (this) {
+        OpportunityType.practice => 'Practica',
+        OpportunityType.job      => 'Trabajo',
+      };
+}
 
 class JobModel {
-  final String id;
-  final String title;
-  final String company;
-  final String location;
-  final JobType type;
-  final String postedAgo;
-  final String description;
-  final List<String> requirements;
-
   const JobModel({
     required this.id,
-    required this.title,
     required this.company,
+    required this.title,
     required this.location,
     required this.type,
-    required this.postedAgo,
     required this.description,
-    this.requirements = const [],
+    required this.skills,
+    required this.logoUrl,
+    required this.postedDate,
+    this.salary,
+    this.specializations = const [],
   });
 
-  String get typeLabel => switch (type) {
-        JobType.internship => 'Práctica',
-        JobType.fullTime => 'Tiempo completo',
-        JobType.partTime => 'Medio tiempo',
-      };
+  final String id;
+  final String company;
+  final String title;
+  final String location;
+  final OpportunityType type;
+  final String description;
+  final List<String> skills;
+  final String logoUrl;
+  final String postedDate;
+  final String? salary;
+  final List<String> specializations;
 }

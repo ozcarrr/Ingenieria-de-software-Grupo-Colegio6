@@ -1,31 +1,31 @@
-class ChatModel {
-  final String id;
-  final String participantName;
-  final String participantTitle;
-  final String lastMessage;
-  final String time;
-  final int unreadCount;
+import '../../../../core/models/user_profile.dart';
 
-  const ChatModel({
+class ChatPreview {
+  const ChatPreview({
     required this.id,
-    required this.participantName,
-    required this.participantTitle,
+    required this.user,
     required this.lastMessage,
-    required this.time,
-    this.unreadCount = 0,
+    required this.timestamp,
+    required this.unread,
   });
+
+  final String id;
+  final UserProfile user;
+  final String lastMessage;
+  final String timestamp;
+  final bool unread;
 }
 
-class MessageModel {
-  final String id;
-  final String text;
-  final bool isMine;
-  final String time;
-
-  const MessageModel({
+class ChatMessage {
+  const ChatMessage({
     required this.id,
     required this.text,
+    required this.timestamp,
     required this.isMine,
-    required this.time,
   });
+
+  final String id;
+  final String text;
+  final String timestamp;
+  final bool isMine;
 }

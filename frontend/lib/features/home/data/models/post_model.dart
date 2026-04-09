@@ -1,25 +1,27 @@
-enum PostType { regular, event }
+import '../../../../core/models/user_profile.dart';
 
 class PostModel {
-  final String id;
-  final String authorName;
-  final String authorTitle;
-  final String? authorBadge;
-  final String timeAgo;
-  final String content;
-  final PostType type;
-  final String? eventDate;
-  final List<String> details;
-
   const PostModel({
     required this.id,
-    required this.authorName,
-    required this.authorTitle,
-    this.authorBadge,
-    required this.timeAgo,
+    required this.author,
     required this.content,
-    this.type = PostType.regular,
+    required this.likes,
+    required this.comments,
+    required this.shares,
+    required this.timestamp,
+    this.imageUrl,
+    this.isEvent = false,
     this.eventDate,
-    this.details = const [],
   });
+
+  final String id;
+  final UserProfile author;
+  final String content;
+  final String? imageUrl;
+  final int likes;
+  final int comments;
+  final int shares;
+  final String timestamp;
+  final bool isEvent;
+  final String? eventDate;
 }

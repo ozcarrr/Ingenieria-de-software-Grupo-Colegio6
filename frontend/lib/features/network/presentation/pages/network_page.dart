@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../data/models/person_model.dart';
+
+import '../../../../core/data/mock_data.dart';
+import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/widgets/k_card.dart';
 
 class NetworkPage extends StatefulWidget {
   const NetworkPage({super.key});
@@ -10,250 +12,245 @@ class NetworkPage extends StatefulWidget {
 }
 
 class _NetworkPageState extends State<NetworkPage> {
-  // Sorted descending by mutualConnections — in production this comes from
-  // the API query: SELECT ... ORDER BY mutual_friends_count DESC
-  static const _suggestions = [
-    PersonModel(
-      id: '1',
-      name: 'Camila Rojas',
-      title: 'Estudiante de Electricidad - 4° Medio',
-      mutualConnections: 12,
-    ),
-    PersonModel(
-      id: '2',
-      name: 'Diego Fuentes',
-      title: 'Estudiante de Mecatrónica - 3° Medio',
-      mutualConnections: 9,
-    ),
-    PersonModel(
-      id: '3',
-      name: 'Valentina Soto',
-      title: 'Egresada Técnico en Refrigeración',
-      mutualConnections: 8,
-    ),
-    PersonModel(
-      id: '4',
-      name: 'Andrés Morales',
-      title: 'Estudiante de Construcción - 4° Medio',
-      mutualConnections: 7,
-    ),
-    PersonModel(
-      id: '5',
-      name: 'Paula Vera',
-      title: 'Profesora de Especialidad · Liceo',
-      mutualConnections: 6,
-    ),
-    PersonModel(
-      id: '6',
-      name: 'Sebastián Castro',
-      title: 'Técnico en Mantenimiento · Metalmecánica del Sur',
-      mutualConnections: 5,
-    ),
-    PersonModel(
-      id: '7',
-      name: 'Isidora Núñez',
-      title: 'Estudiante de Electricidad - 3° Medio',
-      mutualConnections: 4,
-    ),
-    PersonModel(
-      id: '8',
-      name: 'Felipe Jiménez',
-      title: 'Reclutador · Instalaciones Eléctricas López',
-      mutualConnections: 3,
-    ),
-  ];
-
-  final Set<String> _connected = {};
-  final Set<String> _dismissed = {};
-
-  List<PersonModel> get _visible =>
-      _suggestions.where((p) => !_dismissed.contains(p.id)).toList();
+  final TextEditingController _searchController = TextEditingController();
+  final Set<String> _connected = <String>{};
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Personas que quizás conozcas',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Basado en conexiones en común',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: _visible.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      final person = _visible[i];
-                      return _PersonCard(
-                        person: person,
-                        isConnected: _connected.contains(person.id),
-                        onConnect: () =>
-                            setState(() => _connected.add(person.id)),
-                        onDismiss: () =>
-                            setState(() => _dismissed.add(person.id)),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
-}
-
-class _PersonCard extends StatelessWidget {
-  final PersonModel person;
-  final bool isConnected;
-  final VoidCallback onConnect;
-  final VoidCallback onDismiss;
-
-  const _PersonCard({
-    required this.person,
-    required this.isConnected,
-    required this.onConnect,
-    required this.onDismiss,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
+    final query = _searchController.text.trim().toLowerCase();
+    final visible = suggestedUsers.where((u) {
+      if (query.isEmpty) return true;
+      return u.name.toLowerCase().contains(query) ||
+          u.title.toLowerCase().contains(query) ||
+          u.skills.any((skill) => skill.toLowerCase().contains(query));
+    }).toList(growable: false);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.primaryLight,
-            child: Text(
-              person.name.substring(0, 1),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+          const Text('Tu Red Profesional',
+              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
+          const Text(
+              'Conecta con profesionales tecnicos y amplia tus oportunidades.'),
+          const SizedBox(height: 16),
+          KCard(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                hintText: 'Buscar por nombre, oficio o habilidad...',
+                prefixIcon: Icon(Icons.search_rounded),
               ),
             ),
           ),
-          const SizedBox(width: 14),
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  person.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth > 900;
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: wide ? 2 : 1,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: wide ? 3 : 4,
+                children: [
+                  _stats(Icons.people_alt_rounded,
+                      '${_connected.length + 234}', 'Conexiones totales'),
+                  _stats(Icons.person_add_alt_1_rounded,
+                      '${suggestedUsers.length}', 'Sugerencias para ti'),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              int cross = 1;
+              if (constraints.maxWidth > 1260) {
+                cross = 3;
+              } else if (constraints.maxWidth > 760) {
+                cross = 2;
+              }
+              return GridView.builder(
+                itemCount: visible.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cross,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.88,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  person.title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.people_outline,
-                      size: 13,
-                      color: AppColors.textTertiary,
+                itemBuilder: (context, index) {
+                  final user = visible[index];
+                  final connected = _connected.contains(user.id);
+                  return KCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 72,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0x140F766E),
+                                Color(0x0F00B5AD)
+                              ],
+                            ),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(17),
+                              topRight: Radius.circular(17),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Transform.translate(
+                                offset: const Offset(0, -30),
+                                child: CircleAvatar(
+                                  radius: 36,
+                                  backgroundColor: Colors.white,
+                                  child: CircleAvatar(
+                                    radius: 32,
+                                    backgroundImage:
+                                        NetworkImage(user.avatarUrl),
+                                  ),
+                                ),
+                              ),
+                              Text(user.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18)),
+                              const SizedBox(height: 2),
+                              Text(user.title,
+                                  style: const TextStyle(
+                                      color: KairosPalette.secondary)),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.pin_drop_rounded,
+                                      size: 16,
+                                      color: KairosPalette.secondary),
+                                  const SizedBox(width: 4),
+                                  Text(user.location,
+                                      style: const TextStyle(
+                                          color: KairosPalette.secondary)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(user.bio,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: user.skills.take(3).map((skill) {
+                                  return Chip(
+                                    label: Text(skill),
+                                    side: BorderSide.none,
+                                    backgroundColor: KairosPalette.muted,
+                                  );
+                                }).toList(growable: false),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '${user.connections} conexiones',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: KairosPalette.primary),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => setState(() {
+                                        if (connected) {
+                                          _connected.remove(user.id);
+                                        } else {
+                                          _connected.add(user.id);
+                                        }
+                                      }),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: connected
+                                            ? KairosPalette.muted
+                                            : KairosPalette.accent,
+                                        foregroundColor: connected
+                                            ? KairosPalette.foreground
+                                            : Colors.white,
+                                      ),
+                                      icon: const Icon(
+                                          Icons.person_add_rounded,
+                                          size: 16),
+                                      label: Text(connected
+                                          ? 'Conectado'
+                                          : 'Conectar'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () {},
+                                      child: const Text('Ver perfil'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${person.mutualConnections} conexiones en común',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stats(IconData icon, String value, String label) {
+    return KCard(
+      borderColor: KairosPalette.primary.withValues(alpha: 0.4),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: KairosPalette.muted,
+              borderRadius: BorderRadius.circular(14),
             ),
+            child: Icon(icon, color: KairosPalette.primary),
           ),
           const SizedBox(width: 12),
-          // Actions
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isConnected)
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: AppColors.primary, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      'Conectado',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                OutlinedButton.icon(
-                  onPressed: onConnect,
-                  icon: const Icon(Icons.person_add_outlined, size: 15),
-                  label: const Text('Conectar'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              if (!isConnected) ...[
-                const SizedBox(height: 6),
-                GestureDetector(
-                  onTap: onDismiss,
-                  child: const Text(
-                    'Ignorar',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                ),
-              ],
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 30, fontWeight: FontWeight.w900)),
+              Text(label,
+                  style:
+                      const TextStyle(color: KairosPalette.secondary)),
             ],
           ),
         ],

@@ -1,380 +1,387 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+
+import '../../../../core/data/mock_data.dart';
+import '../../../../core/models/user_profile.dart';
+import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/widgets/k_card.dart';
 import '../../data/models/job_model.dart';
 
 class JobsPage extends StatefulWidget {
-  const JobsPage({super.key});
+  const JobsPage({super.key, required this.role});
+
+  final UserRole role;
 
   @override
   State<JobsPage> createState() => _JobsPageState();
 }
 
 class _JobsPageState extends State<JobsPage> {
-  String _selectedFilter = 'Todos';
+  final TextEditingController _searchController = TextEditingController();
+  final Set<String> _savedJobs = <String>{};
+  OpportunityType? _selectedType;
+  String? _selectedSpecialization;
 
-  static const _filters = ['Todos', 'Práctica', 'Tiempo completo', 'Medio tiempo'];
-
-  static const _mockJobs = [
-    JobModel(
-      id: '1',
-      title: 'Técnico en Mantenimiento Industrial',
-      company: 'Metalmecánica del Sur S.A.',
-      location: 'Santiago, RM',
-      type: JobType.internship,
-      postedAgo: 'Hace 2 días',
-      description:
-          'Buscamos estudiante de 4° medio de la especialidad Mecánica Industrial para práctica profesional. Participará en mantenimiento preventivo y correctivo de maquinaria.',
-      requirements: ['Especialidad Mecánica', 'Disponibilidad inmediata', 'Responsable'],
-    ),
-    JobModel(
-      id: '2',
-      title: 'Ayudante Electricista',
-      company: 'Instalaciones Eléctricas López',
-      location: 'Lo Espejo, RM',
-      type: JobType.internship,
-      postedAgo: 'Hace 3 días',
-      description:
-          'Empresa de instalaciones eléctricas residenciales y comerciales busca estudiante en práctica para apoyar en instalaciones y mantenciones.',
-      requirements: ['Especialidad Electricidad', 'Licencia de conducir (deseable)'],
-    ),
-    JobModel(
-      id: '3',
-      title: 'Operador CNC',
-      company: 'Piezas y Tornos Ltda.',
-      location: 'Pudahuel, RM',
-      type: JobType.fullTime,
-      postedAgo: 'Hace 1 semana',
-      description:
-          'Se busca técnico con experiencia en operación de tornos CNC para producción de piezas de precisión. Turno diurno.',
-      requirements: ['Manejo de AutoCAD', 'Experiencia en CNC', 'Egresado técnico'],
-    ),
-    JobModel(
-      id: '4',
-      title: 'Soldador MIG/TIG',
-      company: 'Estructuras Metálicas Acero',
-      location: 'Cerrillos, RM',
-      type: JobType.fullTime,
-      postedAgo: 'Hace 5 días',
-      description:
-          'Requerimos soldador con experiencia en procesos MIG y TIG para fabricación de estructuras metálicas industriales.',
-      requirements: ['Certificación en soldadura', 'Experiencia mínima 1 año'],
-    ),
-    JobModel(
-      id: '5',
-      title: 'Técnico en Refrigeración (Práctica)',
-      company: 'Frío Industrial Ltda.',
-      location: 'Maipú, RM',
-      type: JobType.internship,
-      postedAgo: 'Hace 1 día',
-      description:
-          'Empresa de mantención de equipos de refrigeración industrial y comercial acepta estudiante en práctica.',
-      requirements: ['Especialidad Refrigeración o Electricidad', '4° medio'],
-    ),
+  static const List<String> _specializations = [
+    'Mecatronica',
+    'Automatizacion',
+    'Recursos Humanos',
+    'Mecanica',
   ];
 
-  List<JobModel> get _filtered => _selectedFilter == 'Todos'
-      ? _mockJobs
-      : _mockJobs.where((j) => j.typeLabel == _selectedFilter).toList();
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Trabajos y Prácticas',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_filtered.length} ofertas disponibles',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Filters
-                SizedBox(
-                  height: 36,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _filters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final selected = _filters[i] == _selectedFilter;
-                      return GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedFilter = _filters[i]),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? AppColors.primary
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: selected
-                                  ? AppColors.primary
-                                  : AppColors.divider,
-                            ),
-                          ),
-                          child: Text(
-                            _filters[i],
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: selected
-                                  ? Colors.white
-                                  : AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Job list
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: _filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _JobCard(job: _filtered[i]),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
-}
-
-class _JobCard extends StatefulWidget {
-  final JobModel job;
-  const _JobCard({required this.job});
-
-  @override
-  State<_JobCard> createState() => _JobCardState();
-}
-
-class _JobCardState extends State<_JobCard> {
-  bool _applied = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
+    final filteredJobs = jobs.where(_matchesFilter).toList(growable: false);
+    final isCompany = widget.role == UserRole.company;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Company logo placeholder
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.business,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                  children: const [
+                    Text('Oportunidades Laborales',
+                        style: TextStyle(
+                            fontSize: 34, fontWeight: FontWeight.w900)),
+                    SizedBox(height: 4),
                     Text(
-                      widget.job.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.job.company,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 13,
-                          color: AppColors.textTertiary,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          widget.job.location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Icon(
-                          Icons.access_time,
-                          size: 13,
-                          color: AppColors.textTertiary,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          widget.job.postedAgo,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ],
-                    ),
+                        'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro'),
                   ],
                 ),
               ),
-              _TypeBadge(label: widget.job.typeLabel),
+              if (isCompany)
+                ElevatedButton.icon(
+                  onPressed: () => _showCreateOfferDialog(context),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: KairosPalette.accent),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Publicar oferta'),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            widget.job.description,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.5,
+          const SizedBox(height: 16),
+          KCard(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0x1A0F766E), Color(0xFFE8F3EF)],
             ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (widget.job.requirements.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: widget.job.requirements
-                  .map((r) => _ReqChip(label: r))
-                  .toList(),
-            ),
-          ],
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (_applied)
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: AppColors.primary, size: 16),
-                    SizedBox(width: 6),
-                    Text(
-                      'Postulación enviada',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                ElevatedButton(
-                  onPressed: () => setState(() => _applied = true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 10,
-                    ),
+            borderColor: KairosPalette.primary,
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: KairosPalette.primary,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'Postular',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  child: const Icon(Icons.auto_awesome_rounded,
+                      color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Automatiza tu CV',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900, fontSize: 18)),
+                      SizedBox(height: 4),
+                      Text(
+                          'Genera CVs personalizados para cada oferta en segundos.'),
+                    ],
                   ),
                 ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.bolt_rounded),
+                  label: const Text('Generar CV'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          KCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar por habilidad, empresa o cargo...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: () =>
+                                setState(() => _searchController.clear()),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 14),
+                const Text('Tipo de oportunidad',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _typeChip('Todas', null),
+                    _typeChip('Practicas', OpportunityType.practice),
+                    _typeChip('Trabajos', OpportunityType.job),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text('Especializacion',
+                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _specializationChip('Todas', null),
+                    ..._specializations
+                        .map((s) => _specializationChip(s, s)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth > 900;
+              return GridView.count(
+                crossAxisCount: wide ? 3 : 1,
+                childAspectRatio: wide ? 3 : 4.5,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                children: [
+                  _statCard(Icons.work_rounded, '${jobs.length}',
+                      'Ofertas activas'),
+                  _statCard(Icons.bookmark_rounded, '${_savedJobs.length}',
+                      'Guardadas'),
+                  _statCard(
+                      Icons.schedule_rounded, '12', 'Nuevas esta semana'),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          if (filteredJobs.isEmpty)
+            const KCard(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                    child: Text('No hay resultados con esos filtros.')),
+              ),
+            )
+          else
+            ...filteredJobs.map((job) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _jobTile(job),
+                )),
+        ],
+      ),
+    );
+  }
+
+  bool _matchesFilter(JobModel job) {
+    final query = _searchController.text.trim().toLowerCase();
+    final matchesSearch = query.isEmpty ||
+        job.title.toLowerCase().contains(query) ||
+        job.company.toLowerCase().contains(query) ||
+        job.skills.any((skill) => skill.toLowerCase().contains(query));
+    final matchesType =
+        _selectedType == null || job.type == _selectedType;
+    final matchesSpecialization = _selectedSpecialization == null ||
+        job.specializations.contains(_selectedSpecialization);
+    return matchesSearch && matchesType && matchesSpecialization;
+  }
+
+  Widget _jobTile(JobModel job) {
+    final saved = _savedJobs.contains(job.id);
+    return KCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(job.logoUrl,
+                width: 58, height: 58, fit: BoxFit.cover),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(job.title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900, fontSize: 20)),
+                const SizedBox(height: 2),
+                Text(job.company,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: KairosPalette.secondary)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: [
+                    _metaChip(Icons.pin_drop_rounded, job.location),
+                    _metaChip(Icons.work_rounded, job.type.label),
+                    if (job.salary != null)
+                      _metaChip(Icons.attach_money_rounded, job.salary!),
+                    _metaChip(Icons.schedule_rounded, job.postedDate),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(job.description),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: job.skills
+                      .map((skill) => Chip(
+                            label: Text(skill),
+                            side: BorderSide.none,
+                            backgroundColor: KairosPalette.muted,
+                          ))
+                      .toList(growable: false),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            children: [
+              IconButton(
+                tooltip: saved ? 'Quitar de guardadas' : 'Guardar',
+                onPressed: () => setState(() {
+                  if (saved) {
+                    _savedJobs.remove(job.id);
+                  } else {
+                    _savedJobs.add(job.id);
+                  }
+                }),
+                icon: Icon(saved
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: KairosPalette.accent),
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('Aplicar'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {},
+                child: const Text('Ver detalles'),
+              ),
             ],
           ),
         ],
       ),
     );
   }
-}
 
-class _TypeBadge extends StatelessWidget {
-  final String label;
-  const _TypeBadge({required this.label});
+  Widget _metaChip(IconData icon, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: KairosPalette.secondary),
+        const SizedBox(width: 4),
+        Text(value, style: const TextStyle(color: KairosPalette.secondary)),
+      ],
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-        ),
+  Widget _statCard(IconData icon, String value, String label) {
+    return KCard(
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: KairosPalette.muted,
+            ),
+            child: Icon(icon, color: KairosPalette.primary),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.w900)),
+              Text(label,
+                  style:
+                      const TextStyle(color: KairosPalette.secondary)),
+            ],
+          ),
+        ],
       ),
     );
   }
-}
 
-class _ReqChip extends StatelessWidget {
-  final String label;
-  const _ReqChip({required this.label});
+  Widget _typeChip(String label, OpportunityType? type) {
+    final selected = _selectedType == type;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => setState(() => _selectedType = type),
+      selectedColor: KairosPalette.primary,
+      labelStyle: TextStyle(
+          color: selected ? Colors.white : KairosPalette.foreground,
+          fontWeight: FontWeight.w700),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+  Widget _specializationChip(String label, String? value) {
+    final selected = _selectedSpecialization == value;
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) =>
+          setState(() => _selectedSpecialization = value),
+      selectedColor: KairosPalette.primary,
+      labelStyle: TextStyle(
+          color: selected ? Colors.white : KairosPalette.foreground,
+          fontWeight: FontWeight.w700),
+    );
+  }
+
+  void _showCreateOfferDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Publicar oferta'),
+        content: const Text(
+            'Formulario listo para integracion con el backend C#.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar')),
+        ],
       ),
     );
   }
