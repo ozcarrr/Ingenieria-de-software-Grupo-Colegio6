@@ -6,6 +6,7 @@ import '../../../../core/services/social_hub_service.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
+import '../../../staff/presentation/pages/staff_management_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.currentUser, required this.role});
@@ -163,8 +164,62 @@ class _HomePageState extends State<HomePage> {
 
   Widget _mainContent(
       {required bool canCreateEvent, required bool canCreateJobOffer}) {
+    final isStaff = widget.role == UserRole.staff;
     return Column(
       children: [
+        // ── Banner de gestión para staff ────────────────────────────────────
+        if (isStaff)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: KCard(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0x1A0F766E), Color(0xFFE8F3EF)],
+              ),
+              borderColor: KairosPalette.primary,
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: KairosPalette.primary,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.manage_accounts_rounded,
+                        color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Panel de Gestión',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w900, fontSize: 16)),
+                        SizedBox(height: 4),
+                        Text(
+                            'Crea cuentas de alumnos o staff desde un CSV.',
+                            style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const StaffManagementPage()),
+                    ),
+                    icon: const Icon(Icons.upload_file_rounded, size: 18),
+                    label: const Text('Importar CSV'),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: KairosPalette.primary,
+                        foregroundColor: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
         KCard(
           child: Column(
             children: [

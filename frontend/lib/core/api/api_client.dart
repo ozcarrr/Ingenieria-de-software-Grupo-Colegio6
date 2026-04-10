@@ -54,6 +54,7 @@ class ApiClient {
     required String password,
     required String fullName,
     String? institution,
+    String role = 'student',
   }) async {
     final response = await _dio.post('/auth/register', data: {
       'username': username,
@@ -61,6 +62,7 @@ class ApiClient {
       'password': password,
       'fullName': fullName,
       'institution': institution,
+      'role': role,
     });
     return response.data as Map<String, dynamic>;
   }

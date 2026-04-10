@@ -4,6 +4,7 @@ using Kairos.API.Hubs;
 using Kairos.API.Middleware;
 using Kairos.Application.Features.Auth.Commands.Login;
 using Kairos.Infrastructure;
+using Kairos.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -98,6 +99,10 @@ builder.Services.AddCors(opts =>
 
 var app = builder.Build();
 
+// ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
+if (app.Environment.IsDevelopment())
+    await DevDataSeeder.SeedAsync(app.Services);
+
 // ── Middleware pipeline ────────────────────────────────────────────────────────
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -107,7 +112,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();

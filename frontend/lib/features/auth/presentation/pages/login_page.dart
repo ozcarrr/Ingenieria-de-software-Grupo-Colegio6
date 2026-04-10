@@ -1,9 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/api/api_client.dart';
+import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../home/presentation/pages/home_page.dart';
+import 'register_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.onLoginSuccess});
+
+  final void Function(UserProfile user) onLoginSuccess;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -23,17 +28,80 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // TODO: replace with auth use case / Riverpod provider
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
+    try {
+      final client = ApiClient();
+      final response = await client.login(
+        _emailController.text.trim(),
+        _passwordController.text,
       );
-    });
+
+      final token = response['token'] as String;
+      final fullName = response['fullName'] as String? ?? 'Usuario';
+      final avatarUrl = response['profilePictureUrl'] as String? ?? '';
+
+      await client.saveToken(token);
+
+      final roleStr = response['role'] as String? ?? 'student';
+      final user = UserProfile(
+        id: 'me',
+        name: fullName,
+        role: _mapRole(roleStr),
+        title: _titleForRole(roleStr),
+        avatarUrl: avatarUrl,
+        skills: const [],
+        bio: '',
+        location: '',
+        connections: 0,
+      );
+
+      if (!mounted) return;
+      widget.onLoginSuccess(user);
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final message = e.response?.data is Map
+          ? (e.response!.data['message'] ?? 'Credenciales inválidas')
+          : 'Credenciales inválidas';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al conectar con el servidor'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  UserRole _mapRole(String role) => switch (role) {
+        'staff' => UserRole.staff,
+        'company' => UserRole.company,
+        'alumni' => UserRole.alumni,
+        _ => UserRole.student,
+      };
+
+  String _titleForRole(String role) => switch (role) {
+        'staff' => 'Staff del Liceo',
+        'company' => 'Representante de Empresa',
+        _ => 'Estudiante',
+      };
+
+  void _goToRegister() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RegisterPage(
+          onRegisterSuccess: (user, _) => widget.onLoginSuccess(user),
+        ),
+      ),
+    );
   }
 
   @override
@@ -220,7 +288,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {},
+                        onTap: _goToRegister,
                         child: const Text(
                           'Regístrate',
                           style: TextStyle(

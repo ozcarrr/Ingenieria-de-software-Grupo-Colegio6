@@ -12,7 +12,7 @@ import 'package:signalr_netcore/signalr_client.dart';
 ///   await hub.sendMessage(myId, peerId, 'Hello!');
 ///   hub.dispose();
 class ChatHubService {
-  static const String _defaultUrl = 'http://localhost:5000/hubs/chat';
+  static const String _defaultUrl = 'http://localhost:5001/hubs/chat';
 
   HubConnection? _connection;
 
@@ -93,7 +93,7 @@ class ChatHubService {
   Future<void> _invoke(String method, List<Object?> args) async {
     if (!isConnected) return;
     try {
-      await _connection!.invoke(method, args: args);
+      await _connection!.invoke(method, args: args.cast<Object>());
     } catch (_) {
       // Swallow transient errors; reconnect logic handles recovery.
     }

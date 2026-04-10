@@ -19,7 +19,8 @@ public class RegisterCommandHandler(IApplicationDbContext db)
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             FullName = request.FullName,
-            Institution = request.Institution
+            Institution = request.Institution,
+            Role = request.Role ?? "student"
         };
 
         db.Users.Add(user);
