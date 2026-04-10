@@ -9,8 +9,10 @@ public class GetFeedQueryHandler(IApplicationDbContext db)
 {
     public async Task<GetFeedResult> Handle(GetFeedQuery request, CancellationToken cancellationToken)
     {
-        var skip = (request.Page - 1) * request.PageSize;
+        if (request.Page < 1)
+            throw new ArgumentException("El número de página debe ser mayor a 0.");
 
+        var skip  = (request.Page - 1) * request.PageSize;
         var total = await db.Posts.CountAsync(cancellationToken);
 
         var posts = await db.Posts
@@ -20,7 +22,9 @@ public class GetFeedQueryHandler(IApplicationDbContext db)
             .Take(request.PageSize)
             .Select(p => new PostDto(
                 p.Id,
+                p.AuthorId,
                 p.Author.FullName,
+                p.Author.Role ?? "student",
                 p.Author.ProfilePictureUrl,
                 p.Content,
                 p.Type.ToString(),

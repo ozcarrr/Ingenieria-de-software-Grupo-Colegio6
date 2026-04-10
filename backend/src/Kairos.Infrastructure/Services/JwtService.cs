@@ -31,6 +31,7 @@ public class JwtService(IOptions<JwtOptions> options) : IJwtService
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("fullName", user.FullName),
+            new Claim(ClaimTypes.Role, user.Role ?? "student"),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
 

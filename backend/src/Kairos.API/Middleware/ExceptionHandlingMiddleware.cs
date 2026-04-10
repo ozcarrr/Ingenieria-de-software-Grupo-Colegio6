@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Kairos.Application.Common.Exceptions;
 
 namespace Kairos.API.Middleware;
 
@@ -22,10 +23,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         var (statusCode, title) = ex switch
         {
-            UnauthorizedAccessException => (HttpStatusCode.Unauthorized, "No autorizado."),
-            KeyNotFoundException        => (HttpStatusCode.NotFound, "Recurso no encontrado."),
-            InvalidOperationException   => (HttpStatusCode.Conflict, "Operación inválida."),
-            ArgumentException           => (HttpStatusCode.BadRequest, "Solicitud inválida."),
+            UnauthorizedAccessException => (HttpStatusCode.Unauthorized,  "No autorizado."),
+            ForbiddenException          => (HttpStatusCode.Forbidden,     "Acción no permitida."),
+            KeyNotFoundException        => (HttpStatusCode.NotFound,      "Recurso no encontrado."),
+            InvalidOperationException   => (HttpStatusCode.Conflict,      "Operación inválida."),
+            ArgumentException           => (HttpStatusCode.BadRequest,    "Solicitud inválida."),
             _                           => (HttpStatusCode.InternalServerError, "Error interno del servidor.")
         };
 

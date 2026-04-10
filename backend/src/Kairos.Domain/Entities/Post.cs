@@ -1,6 +1,11 @@
 // ── Post ─────────────────────────────────────────────────────
 namespace Kairos.Domain.Entities;
-public enum PostType       { Regular, Event }
+/// <summary>
+/// General  — cualquier usuario puede publicar (texto + imagen/video + fecha opcional).
+/// Event    — solo company o staff (texto + imagen/video + fecha obligatoria).
+/// Job      — solo company (texto + imagen/video, sin fecha).
+/// </summary>
+public enum PostType { General, Event, Job }
 
 public class Post
 {
