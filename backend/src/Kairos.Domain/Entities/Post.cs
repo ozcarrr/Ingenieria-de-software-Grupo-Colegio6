@@ -11,7 +11,7 @@ public class Post
 {
     public int      Id              { get; set; }
     public string   Content         { get; set; } = string.Empty;
-    public PostType Type            { get; set; } = PostType.Regular;
+    public PostType Type            { get; set; } = PostType.General;
     public string?  ImageUrl        { get; set; }
     public string?  EventDate       { get; set; }
     // LikesCount y CommentsCount son contadores desnormalizados:
