@@ -63,8 +63,9 @@ class _LoginPageState extends State<LoginPage> {
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      final message = e.response?.data is Map
-          ? (e.response!.data['message'] ?? 'Credenciales inválidas')
+      final data = e.response?.data;
+      final message = data is Map
+          ? (data['detail'] ?? data['message'] ?? data['title'] ?? 'Credenciales inválidas')
           : 'Credenciales inválidas';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.redAccent),

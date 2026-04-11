@@ -105,9 +105,10 @@ class _RegisterPageState extends State<RegisterPage> {
     } on DioException catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      final message = e.response?.data is Map
-          ? (e.response!.data['message'] ?? 'Error al registrar')
-          : 'DioException: ${e.type} — ${e.message} — status: ${e.response?.statusCode}';
+      final data = e.response?.data;
+      final message = data is Map
+          ? (data['detail'] ?? data['message'] ?? data['title'] ?? 'Error al registrar')
+          : 'Error al registrar (${e.response?.statusCode})';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.redAccent, duration: const Duration(seconds: 8)),
       );

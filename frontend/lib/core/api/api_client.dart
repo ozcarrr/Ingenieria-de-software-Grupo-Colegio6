@@ -18,25 +18,44 @@ class ApiClient {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: _tokenKey);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
+        try {
+          final token = await _storage.read(key: _tokenKey);
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+        } catch (_) {
+          // flutter_secure_storage puede fallar en web — continuar sin token
         }
         return handler.next(options);
       },
       onError: (error, handler) {
-        // Surface API errors cleanly — UI layer handles them
         return handler.next(error);
       },
     ));
   }
 
-  Future<void> saveToken(String token) =>
-      _storage.write(key: _tokenKey, value: token);
+  Future<void> saveToken(String token) async {
+    try {
+      await _storage.write(key: _tokenKey, value: token)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {}
+  }
 
-  Future<void> clearToken() => _storage.delete(key: _tokenKey);
+  Future<void> clearToken() async {
+    try {
+      await _storage.delete(key: _tokenKey)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {}
+  }
 
-  Future<String?> getToken() => _storage.read(key: _tokenKey);
+  Future<String?> getToken() async {
+    try {
+      return await _storage.read(key: _tokenKey)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      return null;
+    }
+  }
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 

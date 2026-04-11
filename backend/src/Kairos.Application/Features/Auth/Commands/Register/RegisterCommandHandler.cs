@@ -10,8 +10,11 @@ public class RegisterCommandHandler(IApplicationDbContext db)
 {
     public async Task<RegisterResult> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var exists = await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
-        if (exists) throw new InvalidOperationException("El correo ya está registrado.");
+        var emailExists = await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken);
+        if (emailExists) throw new InvalidOperationException("El correo ya está registrado.");
+
+        var usernameExists = await db.Users.AnyAsync(u => u.Username == request.Username, cancellationToken);
+        if (usernameExists) throw new InvalidOperationException("El nombre de usuario ya está en uso.");
 
         var user = new User
         {
