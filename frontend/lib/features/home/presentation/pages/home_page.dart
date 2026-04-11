@@ -80,56 +80,6 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         KCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 86,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [KairosPalette.primary, KairosPalette.accent]),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(17),
-                    topRight: Radius.circular(17),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Transform.translate(
-                      offset: const Offset(0, -38),
-                      child: CircleAvatar(
-                        radius: 38,
-                        backgroundColor: Colors.white,
-                        child: CircleAvatar(
-                          radius: 34,
-                          backgroundImage:
-                              NetworkImage(widget.currentUser.avatarUrl),
-                        ),
-                      ),
-                    ),
-                    Text(widget.currentUser.name,
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.w900)),
-                    Text(widget.currentUser.title,
-                        style:
-                            const TextStyle(color: KairosPalette.secondary)),
-                    const SizedBox(height: 14),
-                    _statRow('Conexiones',
-                        widget.currentUser.connections.toString()),
-                    _statRow('Vistas', '89'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        KCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -165,6 +115,7 @@ class _HomePageState extends State<HomePage> {
   Widget _mainContent(
       {required bool canCreateEvent, required bool canCreateJobOffer}) {
     final isStaff = widget.role == UserRole.staff;
+    final currentAvatar = widget.currentUser.avatarUrl.trim();
     return Column(
       children: [
         // ── Banner de gestión para staff ────────────────────────────────────
@@ -227,8 +178,12 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundImage:
-                        NetworkImage(widget.currentUser.avatarUrl),
+                    backgroundImage: currentAvatar.isNotEmpty
+                        ? NetworkImage(currentAvatar)
+                        : null,
+                    child: currentAvatar.isEmpty
+                        ? const Icon(Icons.person_rounded)
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -370,23 +325,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _statRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(label,
-              style: const TextStyle(color: KairosPalette.secondary)),
-          const Spacer(),
-          Text(value,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: KairosPalette.primary)),
-        ],
-      ),
     );
   }
 

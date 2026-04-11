@@ -112,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // ── Header ──────────────────────────────────────────────────────────────────
 
   Widget _buildHeader(UserProfile user) {
-    final avatarUrl = _uploadedAvatarUrl ?? user.avatarUrl;
+    final avatarUrl = (_uploadedAvatarUrl ?? user.avatarUrl).trim();
     return KCard(
       padding: EdgeInsets.zero,
       child: Column(
@@ -149,7 +149,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             backgroundColor: Colors.white,
                             child: CircleAvatar(
                               radius: 47,
-                              backgroundImage: NetworkImage(avatarUrl),
+                              backgroundImage:
+                                  avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                              child: avatarUrl.isEmpty
+                                  ? const Icon(Icons.person_rounded)
+                                  : null,
                             ),
                           ),
                           Positioned(
@@ -381,10 +385,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ...exp.map(
             (e) => ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: KairosPalette.muted,
-                child: Icon(Icons.work_rounded),
-              ),
+              minLeadingWidth: 52,
+              leading: _sectionBubble(Icons.work_rounded),
               title: Text(e.$1,
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               subtitle: Text('${e.$2}\n${e.$3}\n${e.$4}'),
@@ -421,10 +423,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ...certs.map(
             (c) => ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const CircleAvatar(
-                backgroundColor: KairosPalette.muted,
-                child: Icon(Icons.school_rounded),
-              ),
+              minLeadingWidth: 52,
+              leading: _sectionBubble(Icons.school_rounded),
               title: Text(c.$1,
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               subtitle: Text(c.$2),
@@ -594,6 +594,14 @@ class _ProfilePageState extends State<ProfilePage> {
               style: const TextStyle(color: KairosPalette.secondary)),
         ],
       ),
+    );
+  }
+
+  Widget _sectionBubble(IconData icon) {
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: KairosPalette.muted,
+      child: Icon(icon, size: 20, color: KairosPalette.primary),
     );
   }
 }

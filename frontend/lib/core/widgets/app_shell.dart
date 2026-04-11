@@ -35,6 +35,7 @@ class AppShell extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 960;
     final compactDesktop = width < 1320;
+    final avatarUrl = currentUser.avatarUrl.trim();
 
     if (isMobile) {
       return Scaffold(
@@ -166,7 +167,11 @@ class AppShell extends StatelessWidget {
                           const SizedBox(width: 8),
                           CircleAvatar(
                             radius: 16,
-                            backgroundImage: NetworkImage(currentUser.avatarUrl),
+                            backgroundImage:
+                                avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                            child: avatarUrl.isEmpty
+                                ? const Icon(Icons.person_rounded, size: 16)
+                                : null,
                           ),
                         ],
                       ),

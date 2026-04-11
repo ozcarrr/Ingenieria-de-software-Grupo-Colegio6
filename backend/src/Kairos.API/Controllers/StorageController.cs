@@ -23,8 +23,20 @@ public class StorageController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(UploadFileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [RequestSizeLimit(52_428_800)] // 50 MB
-    public async Task<IActionResult> Upload(IFormFile file, CancellationToken ct)
+    public async Task<IActionResult> Upload(CancellationToken ct)
     {
+        if (!Request.HasFormContentType)
+        {
+            var corrected = await TryRecoverMultipartContentTypeAsync(ct);
+            if (!corrected)
+            {
+                return BadRequest(new { detail = "La solicitud debe enviarse como multipart/form-data." });
+            }
+        }
+
+        var form = await Request.ReadFormAsync(ct);
+        var file = form.Files.GetFile("file");
+
         if (file is null || file.Length == 0)
             return BadRequest(new { detail = "No se proporcionó ningún archivo." });
 
@@ -36,5 +48,28 @@ public class StorageController(IMediator mediator) : ControllerBase
             new UploadFileCommand(stream, file.FileName, file.ContentType), ct);
 
         return Ok(result);
+    }
+
+    private async Task<bool> TryRecoverMultipartContentTypeAsync(CancellationToken ct)
+    {
+        Request.EnableBuffering();
+
+        using var reader = new StreamReader(Request.Body, leaveOpen: true);
+        var raw = await reader.ReadToEndAsync(ct);
+        Request.Body.Position = 0;
+
+        if (string.IsNullOrWhiteSpace(raw) || !raw.StartsWith("--", StringComparison.Ordinal))
+            return false;
+
+        var firstLineEnd = raw.IndexOf("\r\n", StringComparison.Ordinal);
+        if (firstLineEnd <= 2)
+            return false;
+
+        var boundary = raw[2..firstLineEnd].Trim();
+        if (string.IsNullOrWhiteSpace(boundary))
+            return false;
+
+        Request.ContentType = $"multipart/form-data; boundary={boundary}";
+        return true;
     }
 }

@@ -215,9 +215,27 @@ class _JobsPageState extends State<JobsPage> {
 
   Widget _jobTile(JobModel job) {
     final saved = _savedJobs.contains(job.id);
+    final applyButtonStyle = ElevatedButton.styleFrom(
+      minimumSize: const Size(136, 40),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      backgroundColor: KairosPalette.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+    );
+    final actionButtonStyle = OutlinedButton.styleFrom(
+      minimumSize: const Size(136, 40),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      side: const BorderSide(color: KairosPalette.primary),
+      foregroundColor: KairosPalette.primary,
+    );
+
     return KCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
@@ -267,8 +285,25 @@ class _JobsPageState extends State<JobsPage> {
             ),
           ),
           const SizedBox(width: 8),
-          Column(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () {},
+                    style: applyButtonStyle,
+                    child: const Text('Aplicar'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () {},
+                    style: actionButtonStyle,
+                    child: const Text('Ver detalles'),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
               IconButton(
                 tooltip: saved ? 'Quitar de guardadas' : 'Guardar',
                 onPressed: () => setState(() {
@@ -281,18 +316,6 @@ class _JobsPageState extends State<JobsPage> {
                 icon: Icon(saved
                     ? Icons.bookmark_rounded
                     : Icons.bookmark_border_rounded),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: KairosPalette.accent),
-                icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                label: const Text('Aplicar'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () {},
-                child: const Text('Ver detalles'),
               ),
             ],
           ),

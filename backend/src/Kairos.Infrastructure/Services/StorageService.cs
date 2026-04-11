@@ -23,7 +23,18 @@ public class StorageService(IOptions<AzureBlobOptions> options) : IStorageServic
         string contentType,
         CancellationToken cancellationToken = default)
     {
-        var container = new BlobContainerClient(_opts.ConnectionString, _opts.ContainerName);
+        var blobOptions = new BlobClientOptions
+        {
+            Retry =
+            {
+                MaxRetries = 1,
+                Delay = TimeSpan.FromMilliseconds(200),
+                MaxDelay = TimeSpan.FromSeconds(1),
+                NetworkTimeout = TimeSpan.FromSeconds(3)
+            }
+        };
+
+        var container = new BlobContainerClient(_opts.ConnectionString, _opts.ContainerName, blobOptions);
         await container.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
         var blob = container.GetBlobClient(fileName);

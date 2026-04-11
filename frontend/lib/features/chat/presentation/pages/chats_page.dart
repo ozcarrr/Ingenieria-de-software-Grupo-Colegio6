@@ -264,8 +264,13 @@ class _ChatsPageState extends State<ChatsPage> {
                   child: Row(
                     children: [
                       CircleAvatar(
-                          backgroundImage:
-                              NetworkImage(chat.user.avatarUrl)),
+                      backgroundImage: chat.user.avatarUrl.trim().isNotEmpty
+                        ? NetworkImage(chat.user.avatarUrl)
+                        : null,
+                      child: chat.user.avatarUrl.trim().isEmpty
+                        ? const Icon(Icons.person_rounded)
+                        : null,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -336,8 +341,13 @@ class _ChatsPageState extends State<ChatsPage> {
           child: Row(
             children: [
               CircleAvatar(
-                  backgroundImage:
-                      NetworkImage(_selected.user.avatarUrl)),
+              backgroundImage: _selected.user.avatarUrl.trim().isNotEmpty
+                ? NetworkImage(_selected.user.avatarUrl)
+                : null,
+              child: _selected.user.avatarUrl.trim().isEmpty
+                ? const Icon(Icons.person_rounded)
+                : null,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

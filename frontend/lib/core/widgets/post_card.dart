@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../features/home/data/models/post_model.dart';
@@ -16,12 +18,14 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   late bool _liked;
   late int _likes;
+  late bool _isExpanded;
 
   @override
   void initState() {
     super.initState();
     _liked = false;
     _likes = widget.post.likes;
+    _isExpanded = false;
   }
 
   void _toggleLike() {
@@ -31,10 +35,57 @@ class _PostCardState extends State<PostCard> {
     });
   }
 
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+  }
+
+  bool _shouldUseSquareMedia(String? url) {
+    if (url == null || url.isEmpty) return false;
+
+    final normalized = url.toLowerCase();
+    if (normalized.contains('1x1') ||
+        normalized.contains('1:1') ||
+        normalized.contains('square')) {
+      return true;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+
+    final widthRaw = uri.queryParameters['w'] ?? uri.queryParameters['width'];
+    final heightRaw = uri.queryParameters['h'] ?? uri.queryParameters['height'];
+    final width = int.tryParse(widthRaw ?? '');
+    final height = int.tryParse(heightRaw ?? '');
+
+    return width != null && height != null && width == height;
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = widget.post;
-    return KCard(
+    final authorAvatar = post.author.avatarUrl.trim();
+    final imageUrl = post.imageUrl?.trim();
+    final content = post.content.trim();
+    final canCollapseContent = content.length > 180;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxCardWidth = switch (constraints.maxWidth) {
+          >= 1200 => 620.0,
+          >= 900 => 580.0,
+          >= 700 => 540.0,
+          _ => constraints.maxWidth,
+        };
+        final cardWidth = math.min(constraints.maxWidth, maxCardWidth);
+        final mediaAspectRatio = _shouldUseSquareMedia(imageUrl) ? 1.0 : 3 / 4;
+
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: cardWidth,
+            child: KCard(
       borderColor: post.isEvent
           ? KairosPalette.primary.withValues(alpha: 0.4)
           : KairosPalette.border,
@@ -81,7 +132,11 @@ class _PostCardState extends State<PostCard> {
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundImage: NetworkImage(post.author.avatarUrl),
+                  backgroundImage:
+                      authorAvatar.isNotEmpty ? NetworkImage(authorAvatar) : null,
+                  child: authorAvatar.isEmpty
+                      ? const Icon(Icons.person_rounded)
+                      : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -109,18 +164,45 @@ class _PostCardState extends State<PostCard> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(post.content, style: const TextStyle(height: 1.4)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  content,
+                  style: const TextStyle(height: 1.4),
+                  maxLines: _isExpanded ? null : 3,
+                  overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                ),
+                if (canCollapseContent)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: TextButton(
+                      onPressed: _toggleExpanded,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: KairosPalette.primary,
+                      ),
+                      child: Text(_isExpanded ? 'Ver menos' : 'Ver mas'),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          if (post.imageUrl != null)
+          if (imageUrl != null && imageUrl.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 14),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  post.imageUrl!,
-                  width: double.infinity,
-                  height: 240,
-                  fit: BoxFit.cover,
+                child: AspectRatio(
+                  aspectRatio: mediaAspectRatio,
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.topCenter,
+                  ),
                 ),
               ),
             ),
@@ -130,15 +212,33 @@ class _PostCardState extends State<PostCard> {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: KairosPalette.border)),
             ),
-            child: Row(
-              children: [
-                Text('$_likes Me gusta',
-                    style: const TextStyle(fontWeight: FontWeight.w700)),
-                const Spacer(),
-                Text('${post.comments} Comentarios'),
-                const SizedBox(width: 12),
-                Text('${post.shares} Compartidos'),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 360;
+                if (isCompact) {
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: [
+                      Text('$_likes Me gusta',
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text('${post.comments} Comentarios'),
+                      Text('${post.shares} Compartidos'),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Text('$_likes Me gusta',
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    Text('${post.comments} Comentarios'),
+                    const SizedBox(width: 12),
+                    Text('${post.shares} Compartidos'),
+                  ],
+                );
+              },
             ),
           ),
           Row(
@@ -167,6 +267,10 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -196,9 +300,14 @@ class _ActionButton extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 6),
-              Text(label,
-                  style:
-                      TextStyle(color: color, fontWeight: FontWeight.w700)),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
         ),

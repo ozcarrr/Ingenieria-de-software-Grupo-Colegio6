@@ -2,6 +2,7 @@ using System.Text;
 using FluentValidation;
 using Kairos.API.Hubs;
 using Kairos.API.Middleware;
+using Kairos.Application.Common.Behaviors;
 using Kairos.Application.Features.Auth.Commands.Login;
 using Kairos.Infrastructure;
 using Kairos.Infrastructure.Persistence;
@@ -17,7 +18,10 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // ── Application (MediatR + FluentValidation) ──────────────────────────────────
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssemblyContaining<LoginCommand>());
+{
+    cfg.RegisterServicesFromAssemblyContaining<LoginCommand>();
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
 
 builder.Services.AddValidatorsFromAssemblyContaining<LoginCommand>();
 
@@ -142,6 +146,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<SocialHub>("/hubs/chat");
 app.MapHub<SocialHub>("/hubs/social");
 
 app.Run();

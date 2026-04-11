@@ -126,8 +126,12 @@ class _NetworkPageState extends State<NetworkPage> {
                                   backgroundColor: Colors.white,
                                   child: CircleAvatar(
                                     radius: 32,
-                                    backgroundImage:
-                                        NetworkImage(user.avatarUrl),
+                                    backgroundImage: user.avatarUrl.trim().isNotEmpty
+                                        ? NetworkImage(user.avatarUrl)
+                                        : null,
+                                    child: user.avatarUrl.trim().isEmpty
+                                        ? const Icon(Icons.person_rounded)
+                                        : null,
                                   ),
                                 ),
                               ),
