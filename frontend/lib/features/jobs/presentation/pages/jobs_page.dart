@@ -36,39 +36,82 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final mobile = width < 760;
+    final pagePadding = mobile
+        ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
+        : const EdgeInsets.all(20);
     final filteredJobs = jobs.where(_matchesFilter).toList(growable: false);
     final isCompany = widget.role == UserRole.company;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('Oportunidades Laborales',
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Oportunidades Laborales',
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro',
+                ),
+                if (isCompany) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showCreateOfferDialog(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KairosPalette.accent,
+                      ),
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Publicar oferta'),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          else
+            Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Oportunidades Laborales',
                         style: TextStyle(
-                            fontSize: 34, fontWeight: FontWeight.w900)),
-                    SizedBox(height: 4),
-                    Text(
-                        'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro'),
-                  ],
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (isCompany)
-                ElevatedButton.icon(
-                  onPressed: () => _showCreateOfferDialog(context),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: KairosPalette.accent),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Publicar oferta'),
-                ),
-            ],
-          ),
+                if (isCompany)
+                  ElevatedButton.icon(
+                    onPressed: () => _showCreateOfferDialog(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KairosPalette.accent,
+                    ),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Publicar oferta'),
+                  ),
+              ],
+            ),
           const SizedBox(height: 16),
           KCard(
             gradient: const LinearGradient(
@@ -77,39 +120,96 @@ class _JobsPageState extends State<JobsPage> {
               colors: [Color(0x1A0F766E), Color(0xFFE8F3EF)],
             ),
             borderColor: KairosPalette.primary,
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: KairosPalette.primary,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded,
-                      color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
+            child: mobile
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Automatiza tu CV',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w900, fontSize: 18)),
-                      SizedBox(height: 4),
-                      Text(
-                          'Genera CVs personalizados para cada oferta en segundos.'),
+                      Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: KairosPalette.primary,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Automatiza tu CV',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Genera CVs personalizados para cada oferta en segundos.',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.bolt_rounded),
+                          label: const Text('Generar CV'),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: KairosPalette.primary,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Automatiza tu CV',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Genera CVs personalizados para cada oferta en segundos.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.bolt_rounded),
+                        label: const Text('Generar CV'),
+                      ),
                     ],
                   ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.bolt_rounded),
-                  label: const Text('Generar CV'),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 16),
           KCard(
@@ -132,8 +232,10 @@ class _JobsPageState extends State<JobsPage> {
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 14),
-                const Text('Tipo de oportunidad',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const Text(
+                  'Tipo de oportunidad',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -144,57 +246,89 @@ class _JobsPageState extends State<JobsPage> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                const Text('Especializacion',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
+                const Text(
+                  'Especializacion',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
                     _specializationChip('Todas', null),
-                    ..._specializations
-                        .map((s) => _specializationChip(s, s)),
+                    ..._specializations.map((s) => _specializationChip(s, s)),
                   ],
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth > 900;
-              return GridView.count(
-                crossAxisCount: wide ? 3 : 1,
-                childAspectRatio: wide ? 3 : 4.5,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                children: [
-                  _statCard(Icons.work_rounded, '${jobs.length}',
-                      'Ofertas activas'),
-                  _statCard(Icons.bookmark_rounded, '${_savedJobs.length}',
-                      'Guardadas'),
-                  _statCard(
-                      Icons.schedule_rounded, '12', 'Nuevas esta semana'),
-                ],
-              );
-            },
-          ),
+          if (mobile)
+            Column(
+              children: [
+                _statCard(
+                  Icons.work_rounded,
+                  '${jobs.length}',
+                  'Ofertas activas',
+                ),
+                const SizedBox(height: 10),
+                _statCard(
+                  Icons.bookmark_rounded,
+                  '${_savedJobs.length}',
+                  'Guardadas',
+                ),
+                const SizedBox(height: 10),
+                _statCard(Icons.schedule_rounded, '12', 'Nuevas esta semana'),
+              ],
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 900;
+                return GridView.count(
+                  crossAxisCount: wide ? 3 : 1,
+                  childAspectRatio: wide ? 3 : 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  children: [
+                    _statCard(
+                      Icons.work_rounded,
+                      '${jobs.length}',
+                      'Ofertas activas',
+                    ),
+                    _statCard(
+                      Icons.bookmark_rounded,
+                      '${_savedJobs.length}',
+                      'Guardadas',
+                    ),
+                    _statCard(
+                      Icons.schedule_rounded,
+                      '12',
+                      'Nuevas esta semana',
+                    ),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 12),
           if (filteredJobs.isEmpty)
             const KCard(
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
-                    child: Text('No hay resultados con esos filtros.')),
+                  child: Text('No hay resultados con esos filtros.'),
+                ),
               ),
             )
           else
-            ...filteredJobs.map((job) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _jobTile(job),
-                )),
+            ...filteredJobs.map(
+              (job) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _jobTile(job, mobile: mobile),
+              ),
+            ),
         ],
       ),
     );
@@ -202,36 +336,152 @@ class _JobsPageState extends State<JobsPage> {
 
   bool _matchesFilter(JobModel job) {
     final query = _searchController.text.trim().toLowerCase();
-    final matchesSearch = query.isEmpty ||
+    final matchesSearch =
+        query.isEmpty ||
         job.title.toLowerCase().contains(query) ||
         job.company.toLowerCase().contains(query) ||
         job.skills.any((skill) => skill.toLowerCase().contains(query));
-    final matchesType =
-        _selectedType == null || job.type == _selectedType;
-    final matchesSpecialization = _selectedSpecialization == null ||
+    final matchesType = _selectedType == null || job.type == _selectedType;
+    final matchesSpecialization =
+        _selectedSpecialization == null ||
         job.specializations.contains(_selectedSpecialization);
     return matchesSearch && matchesType && matchesSpecialization;
   }
 
-  Widget _jobTile(JobModel job) {
+  Widget _jobTile(JobModel job, {required bool mobile}) {
     final saved = _savedJobs.contains(job.id);
     final applyButtonStyle = ElevatedButton.styleFrom(
-      minimumSize: const Size(136, 40),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      minimumSize: Size(mobile ? 0 : 136, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: KairosPalette.primary,
       foregroundColor: Colors.white,
       elevation: 0,
     );
     final actionButtonStyle = OutlinedButton.styleFrom(
-      minimumSize: const Size(136, 40),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      minimumSize: Size(mobile ? 0 : 136, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       side: const BorderSide(color: KairosPalette.primary),
       foregroundColor: KairosPalette.primary,
     );
+
+    if (mobile) {
+      return KCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    job.logoUrl,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        job.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 21,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        job.company,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: KairosPalette.secondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 6,
+              children: [
+                _metaChip(Icons.pin_drop_rounded, job.location),
+                _metaChip(Icons.work_rounded, job.type.label),
+                if (job.salary != null)
+                  _metaChip(Icons.attach_money_rounded, job.salary!),
+                _metaChip(Icons.schedule_rounded, job.postedDate),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(job.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: job.skills
+                  .map(
+                    (skill) => Chip(
+                      label: Text(skill),
+                      side: BorderSide.none,
+                      backgroundColor: KairosPalette.muted,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: applyButtonStyle,
+                    child: const Text('Aplicar'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {},
+                    style: actionButtonStyle,
+                    child: const Text('Ver detalles'),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: IconButton(
+                    tooltip: saved ? 'Quitar de guardadas' : 'Guardar',
+                    onPressed: () => setState(() {
+                      if (saved) {
+                        _savedJobs.remove(job.id);
+                      } else {
+                        _savedJobs.add(job.id);
+                      }
+                    }),
+                    icon: Icon(
+                      saved
+                          ? Icons.bookmark_rounded
+                          : Icons.bookmark_border_rounded,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return KCard(
       child: Row(
@@ -239,22 +489,33 @@ class _JobsPageState extends State<JobsPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(job.logoUrl,
-                width: 58, height: 58, fit: BoxFit.cover),
+            child: Image.network(
+              job.logoUrl,
+              width: 58,
+              height: 58,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(job.title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900, fontSize: 20)),
+                Text(
+                  job.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(job.company,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: KairosPalette.secondary)),
+                Text(
+                  job.company,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: KairosPalette.secondary,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 12,
@@ -274,11 +535,13 @@ class _JobsPageState extends State<JobsPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: job.skills
-                      .map((skill) => Chip(
-                            label: Text(skill),
-                            side: BorderSide.none,
-                            backgroundColor: KairosPalette.muted,
-                          ))
+                      .map(
+                        (skill) => Chip(
+                          label: Text(skill),
+                          side: BorderSide.none,
+                          backgroundColor: KairosPalette.muted,
+                        ),
+                      )
                       .toList(growable: false),
                 ),
               ],
@@ -313,9 +576,11 @@ class _JobsPageState extends State<JobsPage> {
                     _savedJobs.add(job.id);
                   }
                 }),
-                icon: Icon(saved
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded),
+                icon: Icon(
+                  saved
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                ),
               ),
             ],
           ),
@@ -349,17 +614,26 @@ class _JobsPageState extends State<JobsPage> {
             child: Icon(icon, color: KairosPalette.primary),
           ),
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
                   style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.w900)),
-              Text(label,
-                  style:
-                      const TextStyle(color: KairosPalette.secondary)),
-            ],
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: KairosPalette.secondary),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -374,8 +648,9 @@ class _JobsPageState extends State<JobsPage> {
       onSelected: (_) => setState(() => _selectedType = type),
       selectedColor: KairosPalette.primary,
       labelStyle: TextStyle(
-          color: selected ? Colors.white : KairosPalette.foreground,
-          fontWeight: FontWeight.w700),
+        color: selected ? Colors.white : KairosPalette.foreground,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 
@@ -384,12 +659,12 @@ class _JobsPageState extends State<JobsPage> {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) =>
-          setState(() => _selectedSpecialization = value),
+      onSelected: (_) => setState(() => _selectedSpecialization = value),
       selectedColor: KairosPalette.primary,
       labelStyle: TextStyle(
-          color: selected ? Colors.white : KairosPalette.foreground,
-          fontWeight: FontWeight.w700),
+        color: selected ? Colors.white : KairosPalette.foreground,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 
@@ -399,11 +674,13 @@ class _JobsPageState extends State<JobsPage> {
       builder: (_) => AlertDialog(
         title: const Text('Publicar oferta'),
         content: const Text(
-            'Formulario listo para integracion con el backend C#.'),
+          'Formulario listo para integracion con el backend C#.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cerrar')),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
         ],
       ),
     );

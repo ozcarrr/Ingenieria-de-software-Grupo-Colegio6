@@ -19,11 +19,11 @@ class ChatsPage extends StatefulWidget {
 }
 
 class _ChatsPageState extends State<ChatsPage> {
-  final TextEditingController _inputController  = TextEditingController();
+  final TextEditingController _inputController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController      _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
-  late ChatPreview _selected;
+  ChatPreview? _selected;
   final List<ChatMessage> _thread = List<ChatMessage>.from(sampleConversation);
 
   // ── SignalR ────────────────────────────────────────────────────────────────
@@ -31,34 +31,41 @@ class _ChatsPageState extends State<ChatsPage> {
   StreamSubscription<dynamic>? _msgSub;
   StreamSubscription<dynamic>? _typingSub;
 
-  bool    _isTyping    = false;
-  Timer?  _typingTimer;
+  bool _isTyping = false;
+  Timer? _typingTimer;
 
   @override
   void initState() {
     super.initState();
-    _selected = chatPreviews.first;
-    _initHub();
+    if (chatPreviews.isNotEmpty) {
+      _selected = chatPreviews.first;
+      _initHub();
+    }
   }
 
   Future<void> _initHub() async {
+    final selected = _selected;
+    if (selected == null) return;
+
     await _hub.connect();
     if (!mounted) return;
 
     // Join initial conversation group
-    await _hub.joinConversation(widget.currentUser.id, _selected.user.id);
+    await _hub.joinConversation(widget.currentUser.id, selected.user.id);
 
     // Listen for incoming messages
     _msgSub = _hub.onMessage.listen((msg) {
       if (!mounted) return;
       setState(() {
-        _thread.add(ChatMessage(
-          id:       DateTime.now().millisecondsSinceEpoch.toString(),
-          text:     msg.content,
-          timestamp: msg.timestamp,
-          isMine:   msg.senderId == widget.currentUser.id,
-          senderId: msg.senderId,
-        ));
+        _thread.add(
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            text: msg.content,
+            timestamp: msg.timestamp,
+            isMine: msg.senderId == widget.currentUser.id,
+            senderId: msg.senderId,
+          ),
+        );
       });
       _scrollToBottom();
     });
@@ -68,8 +75,10 @@ class _ChatsPageState extends State<ChatsPage> {
       if (!mounted || senderId == widget.currentUser.id) return;
       _typingTimer?.cancel();
       setState(() => _isTyping = true);
-      _typingTimer = Timer(const Duration(seconds: 3),
-          () => setState(() => _isTyping = false));
+      _typingTimer = Timer(
+        const Duration(seconds: 3),
+        () => setState(() => _isTyping = false),
+      );
     });
   }
 
@@ -78,7 +87,10 @@ class _ChatsPageState extends State<ChatsPage> {
     _msgSub?.cancel();
     _typingSub?.cancel();
     _typingTimer?.cancel();
-    _hub.leaveConversation(widget.currentUser.id, _selected.user.id);
+    final selected = _selected;
+    if (selected != null) {
+      _hub.leaveConversation(widget.currentUser.id, selected.user.id);
+    }
     _hub.dispose();
     _inputController.dispose();
     _searchController.dispose();
@@ -89,41 +101,52 @@ class _ChatsPageState extends State<ChatsPage> {
   // ── Conversation switch ────────────────────────────────────────────────────
 
   Future<void> _selectConversation(ChatPreview chat) async {
-    if (chat.id == _selected.id) return;
+    final current = _selected;
+    if (current?.id == chat.id) return;
 
     // Leave old group, join new group
-    await _hub.leaveConversation(widget.currentUser.id, _selected.user.id);
+    if (current != null && _hub.isConnected) {
+      await _hub.leaveConversation(widget.currentUser.id, current.user.id);
+    }
+
     setState(() {
-      _selected  = chat;
-      _isTyping  = false;
+      _selected = chat;
+      _isTyping = false;
       _thread
         ..clear()
         ..addAll(sampleConversation);
     });
-    await _hub.joinConversation(widget.currentUser.id, chat.user.id);
+
+    if (_hub.isConnected) {
+      await _hub.joinConversation(widget.currentUser.id, chat.user.id);
+    }
   }
 
   // ── Send message ───────────────────────────────────────────────────────────
 
   Future<void> _sendMessage() async {
+    final selected = _selected;
+    if (selected == null) return;
+
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
     _inputController.clear();
 
     if (_hub.isConnected) {
       // Hub will echo back via ReceiveMessage → handled in _msgSub listener
-      await _hub.sendMessage(
-          widget.currentUser.id, _selected.user.id, text);
+      await _hub.sendMessage(widget.currentUser.id, selected.user.id, text);
     } else {
       // Offline fallback: add locally
       setState(() {
-        _thread.add(ChatMessage(
-          id:        DateTime.now().millisecondsSinceEpoch.toString(),
-          text:      text,
-          timestamp: _timeNow(),
-          isMine:    true,
-          senderId:  widget.currentUser.id,
-        ));
+        _thread.add(
+          ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            text: text,
+            timestamp: _timeNow(),
+            isMine: true,
+            senderId: widget.currentUser.id,
+          ),
+        );
       });
     }
     _scrollToBottom();
@@ -132,8 +155,9 @@ class _ChatsPageState extends State<ChatsPage> {
   // ── Typing notification ────────────────────────────────────────────────────
 
   void _onInputChanged(String _) {
-    if (_hub.isConnected) {
-      _hub.sendTyping(widget.currentUser.id, _selected.user.id);
+    final selected = _selected;
+    if (_hub.isConnected && selected != null) {
+      _hub.sendTyping(widget.currentUser.id, selected.user.id);
     }
     setState(() {}); // rebuild search results if needed
   }
@@ -161,39 +185,70 @@ class _ChatsPageState extends State<ChatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width  = MediaQuery.sizeOf(context).width;
+    final width = MediaQuery.sizeOf(context).width;
     final mobile = width < 1000;
-    final query  = _searchController.text.trim().toLowerCase();
+    final pagePadding = mobile
+        ? const EdgeInsets.fromLTRB(14, 14, 14, 12)
+        : const EdgeInsets.all(20);
+    final conversationHeight = (MediaQuery.sizeOf(context).height * 0.27)
+        .clamp(180.0, 230.0)
+        .toDouble();
+    final query = _searchController.text.trim().toLowerCase();
 
-    final conversations = chatPreviews.where((chat) {
-      if (query.isEmpty) return true;
-      return chat.user.name.toLowerCase().contains(query) ||
-          chat.lastMessage.toLowerCase().contains(query) ||
-          chat.user.title.toLowerCase().contains(query);
-    }).toList(growable: false);
+    final conversations = chatPreviews
+        .where((chat) {
+          if (query.isEmpty) return true;
+          return chat.user.name.toLowerCase().contains(query) ||
+              chat.lastMessage.toLowerCase().contains(query) ||
+              chat.user.title.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Mensajes',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Text('Mantente en contacto con tu red profesional.'),
-              const Spacer(),
-              if (_hub.isConnected)
-                const Row(
-                  children: [
-                    Icon(Icons.circle, color: Colors.green, size: 10),
-                    SizedBox(width: 4),
-                    Text('En linea', style: TextStyle(fontSize: 12)),
-                  ],
-                ),
-            ],
+          Text(
+            'Mensajes',
+            style: TextStyle(
+              fontSize: mobile ? 26 : 34,
+              fontWeight: FontWeight.w900,
+            ),
           ),
+          const SizedBox(height: 4),
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Mantente en contacto con tu red profesional.'),
+                if (_hub.isConnected) ...[
+                  const SizedBox(height: 6),
+                  const Row(
+                    children: [
+                      Icon(Icons.circle, color: Colors.green, size: 10),
+                      SizedBox(width: 4),
+                      Text('En linea', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ],
+            )
+          else
+            Row(
+              children: [
+                const Text('Mantente en contacto con tu red profesional.'),
+                const Spacer(),
+                if (_hub.isConnected)
+                  const Row(
+                    children: [
+                      Icon(Icons.circle, color: Colors.green, size: 10),
+                      SizedBox(width: 4),
+                      Text('En linea', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+              ],
+            ),
           const SizedBox(height: 16),
           Expanded(
             child: KCard(
@@ -201,7 +256,13 @@ class _ChatsPageState extends State<ChatsPage> {
               child: mobile
                   ? Column(
                       children: [
-                        _conversationList(conversations, compact: true),
+                        SizedBox(
+                          height: conversationHeight,
+                          child: _conversationList(
+                            conversations,
+                            compact: true,
+                          ),
+                        ),
                         const Divider(height: 1),
                         Expanded(child: _chatPanel()),
                       ],
@@ -209,8 +270,9 @@ class _ChatsPageState extends State<ChatsPage> {
                   : Row(
                       children: [
                         SizedBox(
-                            width: 340,
-                            child: _conversationList(conversations)),
+                          width: 340,
+                          child: _conversationList(conversations),
+                        ),
                         const VerticalDivider(width: 1),
                         Expanded(child: _chatPanel()),
                       ],
@@ -224,12 +286,16 @@ class _ChatsPageState extends State<ChatsPage> {
 
   // ── Conversation list ──────────────────────────────────────────────────────
 
-  Widget _conversationList(List<ChatPreview> conversations,
-      {bool compact = false}) {
+  Widget _conversationList(
+    List<ChatPreview> conversations, {
+    bool compact = false,
+  }) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: compact
+              ? const EdgeInsets.fromLTRB(12, 10, 12, 10)
+              : const EdgeInsets.all(14),
           decoration: const BoxDecoration(
             color: Color(0x140F766E),
             borderRadius: BorderRadius.only(
@@ -250,26 +316,29 @@ class _ChatsPageState extends State<ChatsPage> {
           child: ListView.builder(
             itemCount: conversations.length,
             itemBuilder: (context, index) {
-              final chat     = conversations[index];
-              final selected = chat.id == _selected.id;
+              final chat = conversations[index];
+              final selected = chat.id == _selected?.id;
               return InkWell(
                 onTap: () => _selectConversation(chat),
                 child: Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: compact
+                      ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+                      : const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: selected ? const Color(0x120F766E) : null,
                     border: const Border(
-                        bottom: BorderSide(color: KairosPalette.border)),
+                      bottom: BorderSide(color: KairosPalette.border),
+                    ),
                   ),
                   child: Row(
                     children: [
                       CircleAvatar(
-                      backgroundImage: chat.user.avatarUrl.trim().isNotEmpty
-                        ? NetworkImage(chat.user.avatarUrl)
-                        : null,
-                      child: chat.user.avatarUrl.trim().isEmpty
-                        ? const Icon(Icons.person_rounded)
-                        : null,
+                        backgroundImage: chat.user.avatarUrl.trim().isNotEmpty
+                            ? NetworkImage(chat.user.avatarUrl)
+                            : null,
+                        child: chat.user.avatarUrl.trim().isEmpty
+                            ? const Icon(Icons.person_rounded)
+                            : null,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -279,29 +348,39 @@ class _ChatsPageState extends State<ChatsPage> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: Text(chat.user.name,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w800),
-                                      overflow: TextOverflow.ellipsis),
+                                  child: Text(
+                                    chat.user.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                                Text(chat.timestamp,
-                                    style:
-                                        const TextStyle(fontSize: 11)),
+                                Text(
+                                  chat.timestamp,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 2),
-                            Text(chat.user.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: KairosPalette.secondary,
-                                    fontSize: 12)),
+                            Text(
+                              chat.user.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: KairosPalette.secondary,
+                                fontSize: 12,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text(chat.lastMessage,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: KairosPalette.foreground)),
+                            Text(
+                              chat.lastMessage,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: KairosPalette.foreground,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -311,8 +390,9 @@ class _ChatsPageState extends State<ChatsPage> {
                           height: 9,
                           margin: const EdgeInsets.only(left: 8),
                           decoration: const BoxDecoration(
-                              color: KairosPalette.accent,
-                              shape: BoxShape.circle),
+                            color: KairosPalette.accent,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                     ],
                   ),
@@ -328,11 +408,24 @@ class _ChatsPageState extends State<ChatsPage> {
   // ── Chat panel ─────────────────────────────────────────────────────────────
 
   Widget _chatPanel() {
+    final mobile = MediaQuery.sizeOf(context).width < 1000;
+    final selected = _selected;
+
+    if (selected == null) {
+      return const Center(
+        child: Text(
+          'No hay conversaciones disponibles por ahora.',
+          style: TextStyle(color: KairosPalette.secondary),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return Column(
       children: [
         // Header
         Container(
-          height: 76,
+          height: mobile ? 70 : 76,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: const BoxDecoration(
             color: Color(0x140F766E),
@@ -341,12 +434,12 @@ class _ChatsPageState extends State<ChatsPage> {
           child: Row(
             children: [
               CircleAvatar(
-              backgroundImage: _selected.user.avatarUrl.trim().isNotEmpty
-                ? NetworkImage(_selected.user.avatarUrl)
-                : null,
-              child: _selected.user.avatarUrl.trim().isEmpty
-                ? const Icon(Icons.person_rounded)
-                : null,
+                backgroundImage: selected.user.avatarUrl.trim().isNotEmpty
+                    ? NetworkImage(selected.user.avatarUrl)
+                    : null,
+                child: selected.user.avatarUrl.trim().isEmpty
+                    ? const Icon(Icons.person_rounded)
+                    : null,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -354,18 +447,24 @@ class _ChatsPageState extends State<ChatsPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_selected.user.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16)),
-                    Text(_selected.user.title,
-                        style: const TextStyle(
-                            color: KairosPalette.secondary)),
+                    Text(
+                      selected.user.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      selected.user.title,
+                      style: const TextStyle(color: KairosPalette.secondary),
+                    ),
                   ],
                 ),
               ),
               IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.more_vert_rounded)),
+                onPressed: () {},
+                icon: const Icon(Icons.more_vert_rounded),
+              ),
             ],
           ),
         ),
@@ -384,7 +483,9 @@ class _ChatsPageState extends State<ChatsPage> {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -393,18 +494,22 @@ class _ChatsPageState extends State<ChatsPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('${_selected.user.name} esta escribiendo',
-                            style: const TextStyle(
-                                color: KairosPalette.secondary,
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic)),
+                        Text(
+                          '${selected.user.name} esta escribiendo',
+                          style: const TextStyle(
+                            color: KairosPalette.secondary,
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         const SizedBox(
                           width: 12,
                           height: 12,
                           child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: KairosPalette.secondary),
+                            strokeWidth: 1.5,
+                            color: KairosPalette.secondary,
+                          ),
                         ),
                       ],
                     ),
@@ -420,12 +525,16 @@ class _ChatsPageState extends State<ChatsPage> {
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                  constraints: const BoxConstraints(maxWidth: 480),
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  constraints: BoxConstraints(
+                    maxWidth: mobile
+                        ? MediaQuery.sizeOf(context).width * 0.72
+                        : 480,
+                  ),
                   decoration: BoxDecoration(
-                    color: msg.isMine
-                        ? KairosPalette.primary
-                        : Colors.white,
+                    color: msg.isMine ? KairosPalette.primary : Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: msg.isMine
                         ? null
@@ -437,9 +546,10 @@ class _ChatsPageState extends State<ChatsPage> {
                       Text(
                         msg.text,
                         style: TextStyle(
-                            color: msg.isMine
-                                ? Colors.white
-                                : KairosPalette.foreground),
+                          color: msg.isMine
+                              ? Colors.white
+                              : KairosPalette.foreground,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -473,17 +583,29 @@ class _ChatsPageState extends State<ChatsPage> {
                   onSubmitted: (_) => _sendMessage(),
                   onChanged: _onInputChanged,
                   decoration: const InputDecoration(
-                      hintText: 'Escribe un mensaje...'),
+                    hintText: 'Escribe un mensaje...',
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: KairosPalette.accent),
-                onPressed: _sendMessage,
-                icon: const Icon(Icons.send_rounded, size: 16),
-                label: const Text('Enviar'),
-              ),
+              if (mobile)
+                IconButton.filled(
+                  style: IconButton.styleFrom(
+                    backgroundColor: KairosPalette.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _sendMessage,
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                )
+              else
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: KairosPalette.accent,
+                  ),
+                  onPressed: _sendMessage,
+                  icon: const Icon(Icons.send_rounded, size: 16),
+                  label: const Text('Enviar'),
+                ),
             ],
           ),
         ),

@@ -23,11 +23,11 @@ class AppShell extends StatelessWidget {
   final String? liveNotification;
 
   static const List<_NavItem> _navItems = [
-    _NavItem(label: 'Inicio',    icon: Icons.home_rounded),
-    _NavItem(label: 'Trabajos',  icon: Icons.work_rounded),
-    _NavItem(label: 'Red',       icon: Icons.group_rounded),
-    _NavItem(label: 'Mensajes',  icon: Icons.chat_bubble_rounded),
-    _NavItem(label: 'Perfil',    icon: Icons.person_rounded),
+    _NavItem(label: 'Inicio', icon: Icons.home_rounded),
+    _NavItem(label: 'Trabajos', icon: Icons.work_rounded),
+    _NavItem(label: 'Red', icon: Icons.group_rounded),
+    _NavItem(label: 'Mensajes', icon: Icons.chat_bubble_rounded),
+    _NavItem(label: 'Perfil', icon: Icons.person_rounded),
   ];
 
   @override
@@ -64,8 +64,12 @@ class AppShell extends StatelessWidget {
           selectedIndex: selectedIndex,
           onDestinationSelected: onSelectIndex,
           destinations: _navItems
-              .map((item) =>
-                  NavigationDestination(icon: Icon(item.icon), label: item.label))
+              .map(
+                (item) => NavigationDestination(
+                  icon: Icon(item.icon),
+                  label: item.label,
+                ),
+              )
               .toList(growable: false),
         ),
       );
@@ -80,8 +84,9 @@ class AppShell extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             decoration: const BoxDecoration(
               color: Colors.white,
-              border:
-                  Border(bottom: BorderSide(color: KairosPalette.border, width: 1.2)),
+              border: Border(
+                bottom: BorderSide(color: KairosPalette.border, width: 1.2),
+              ),
             ),
             child: Row(
               children: [
@@ -96,11 +101,15 @@ class AppShell extends StatelessWidget {
                       prefixIcon: const Icon(Icons.search_rounded),
                       filled: true,
                       fillColor: KairosPalette.background,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(999),
-                        borderSide: const BorderSide(color: KairosPalette.border),
+                        borderSide: const BorderSide(
+                          color: KairosPalette.border,
+                        ),
                       ),
                     ),
                   ),
@@ -123,7 +132,9 @@ class AppShell extends StatelessWidget {
                                 onTap: () => onSelectIndex(index),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(14),
                                     color: active
@@ -161,14 +172,17 @@ class AppShell extends StatelessWidget {
                           IconButton(
                             tooltip: 'Cambiar perfil',
                             onPressed: () => _openRoleSelector(context),
-                            icon: const Icon(Icons.swap_horiz_rounded,
-                                color: KairosPalette.secondary),
+                            icon: const Icon(
+                              Icons.swap_horiz_rounded,
+                              color: KairosPalette.secondary,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           CircleAvatar(
                             radius: 16,
-                            backgroundImage:
-                                avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                            backgroundImage: avatarUrl.isNotEmpty
+                                ? NetworkImage(avatarUrl)
+                                : null,
                             child: avatarUrl.isEmpty
                                 ? const Icon(Icons.person_rounded, size: 16)
                                 : null,
@@ -193,72 +207,107 @@ class AppShell extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (context) {
+        final screenSize = MediaQuery.sizeOf(context);
+        final isMobileSheet = screenSize.width < 720;
+
+        final roleCards = LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth;
+            final singleColumn = maxWidth < 470;
+            final cardWidth = singleColumn ? maxWidth : (maxWidth - 12) / 2;
+
+            return Wrap(
+              alignment: WrapAlignment.center,
+              runAlignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: UserRole.values
+                  .map((role) {
+                    final selected = role == roleController.role;
+                    return InkWell(
+                      onTap: () {
+                        roleController.setRole(role);
+                        Navigator.of(context).pop();
+                      },
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: cardWidth,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: selected
+                                ? KairosPalette.primary
+                                : KairosPalette.border,
+                            width: selected ? 2 : 1.2,
+                          ),
+                          color: selected ? KairosPalette.muted : Colors.white,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              _iconForRole(role),
+                              color: KairosPalette.primary,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _labelForRole(role),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: KairosPalette.secondary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _subtitleForRole(role),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: KairosPalette.foreground,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  })
+                  .toList(growable: false),
+            );
+          },
+        );
+
         return Dialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          insetPadding: isMobileSheet
+              ? const EdgeInsets.symmetric(horizontal: 10, vertical: 12)
+              : const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
+            constraints: BoxConstraints(
+              maxWidth: 560,
+              minHeight: isMobileSheet ? screenSize.height * 0.72 : 0,
+              maxHeight: isMobileSheet ? screenSize.height * 0.88 : 560,
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisSize: isMobileSheet
+                    ? MainAxisSize.max
+                    : MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cambiar perfil',
-                      style: Theme.of(context).textTheme.headlineSmall),
+                  Text(
+                    'Cambiar perfil',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 6),
                   const Text('Explora Kairos desde otra perspectiva.'),
                   const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: UserRole.values.map((role) {
-                      final selected = role == roleController.role;
-                      return InkWell(
-                        onTap: () {
-                          roleController.setRole(role);
-                          Navigator.of(context).pop();
-                        },
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          width: 200,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: selected
-                                  ? KairosPalette.primary
-                                  : KairosPalette.border,
-                              width: selected ? 2 : 1.2,
-                            ),
-                            color: selected ? KairosPalette.muted : Colors.white,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(_iconForRole(role),
-                                  color: KairosPalette.primary),
-                              const SizedBox(height: 8),
-                              Text(
-                                _labelForRole(role),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: KairosPalette.secondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _subtitleForRole(role),
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: KairosPalette.foreground),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }).toList(growable: false),
-                  ),
+                  if (isMobileSheet)
+                    Expanded(child: SingleChildScrollView(child: roleCards))
+                  else
+                    roleCards,
                 ],
               ),
             ),
@@ -269,22 +318,25 @@ class AppShell extends StatelessWidget {
   }
 
   String _labelForRole(UserRole role) => switch (role) {
-        UserRole.student || UserRole.alumni => 'Estudiante / Alumni',
-        UserRole.staff                      => 'Staff del Liceo',
-        UserRole.company                    => 'Empresa / Reclutador',
-      };
+    UserRole.student => 'Estudiante',
+    UserRole.alumni => 'Egresado / Alumni',
+    UserRole.staff => 'Staff del Liceo',
+    UserRole.company => 'Empresa / Reclutador',
+  };
 
   String _subtitleForRole(UserRole role) => switch (role) {
-        UserRole.student || UserRole.alumni => 'Busca practicas y trabajos',
-        UserRole.staff                      => 'Coordina y conecta estudiantes',
-        UserRole.company                    => 'Publica ofertas y recluta',
-      };
+    UserRole.student => 'Busca practicas y trabajos',
+    UserRole.alumni => 'Conecta con egresados y empresas',
+    UserRole.staff => 'Coordina y conecta estudiantes',
+    UserRole.company => 'Publica ofertas y recluta',
+  };
 
   IconData _iconForRole(UserRole role) => switch (role) {
-        UserRole.student || UserRole.alumni => Icons.school_rounded,
-        UserRole.staff                      => Icons.badge_rounded,
-        UserRole.company                    => Icons.apartment_rounded,
-      };
+    UserRole.student => Icons.school_rounded,
+    UserRole.alumni => Icons.rocket_launch_rounded,
+    UserRole.staff => Icons.badge_rounded,
+    UserRole.company => Icons.apartment_rounded,
+  };
 }
 
 // ── Live notification banner ───────────────────────────────────────────────────
@@ -349,7 +401,9 @@ class _Brand extends StatelessWidget {
           Text(
             currentUser.name,
             style: const TextStyle(
-                fontWeight: FontWeight.w700, color: KairosPalette.foreground),
+              fontWeight: FontWeight.w700,
+              color: KairosPalette.foreground,
+            ),
           ),
         ],
       ],

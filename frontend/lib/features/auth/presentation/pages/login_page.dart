@@ -62,11 +62,22 @@ class _LoginPageState extends State<LoginPage> {
       widget.onLoginSuccess(user);
     } on DioException catch (e) {
       if (!mounted) return;
+
+      if (_isBackendUnavailable(e)) {
+        final demoUser = _buildDemoUser();
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Backend no disponible. Ingresando en modo demo.'),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+        widget.onLoginSuccess(demoUser);
+        return;
+      }
+
       setState(() => _isLoading = false);
-      final data = e.response?.data;
-      final message = data is Map
-          ? (data['detail'] ?? data['message'] ?? data['title'] ?? 'Credenciales inválidas')
-          : 'Credenciales inválidas';
+      final message = _extractErrorMessage(e.response?.data);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
       );
@@ -82,18 +93,82 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  bool _isBackendUnavailable(DioException e) {
+    if (e.response != null) return false;
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.unknown;
+  }
+
+  String _extractErrorMessage(dynamic data) {
+    if (data is Map) {
+      final raw = data['detail'] ?? data['message'] ?? data['title'];
+      final text = raw?.toString().trim();
+      if (text != null && text.isNotEmpty && text.toLowerCase() != 'null') {
+        return text;
+      }
+    }
+
+    final text = data?.toString().trim();
+    if (text != null && text.isNotEmpty && text.toLowerCase() != 'null') {
+      return text;
+    }
+
+    return 'No se pudo iniciar sesion.';
+  }
+
+  UserProfile _buildDemoUser() {
+    final emailOrUser = _emailController.text.trim();
+    final role = _roleFromInput(emailOrUser);
+
+    final displayName = emailOrUser.isEmpty
+        ? 'Usuario Demo'
+        : emailOrUser.split('@').first.replaceAll('.', ' ').trim();
+
+    return UserProfile(
+      id: 'demo-user',
+      name: displayName.isEmpty ? 'Usuario Demo' : displayName,
+      role: role,
+      title: _titleForRole(role.name),
+      avatarUrl: '',
+      skills: const [],
+      bio: 'Modo demo sin conexion al backend.',
+      location: 'Liceo Tecnico Cardenal Jose Maria Caro',
+      connections: 0,
+    );
+  }
+
+  UserRole _roleFromInput(String text) {
+    final normalized = text.toLowerCase();
+    if (normalized.contains('staff') || normalized.contains('docente')) {
+      return UserRole.staff;
+    }
+    if (normalized.contains('company') ||
+        normalized.contains('empresa') ||
+        normalized.contains('hr')) {
+      return UserRole.company;
+    }
+    if (normalized.contains('alumni') || normalized.contains('egresado')) {
+      return UserRole.alumni;
+    }
+    return UserRole.student;
+  }
+
   UserRole _mapRole(String role) => switch (role) {
-        'staff' => UserRole.staff,
-        'company' => UserRole.company,
-        'alumni' => UserRole.alumni,
-        _ => UserRole.student,
-      };
+    'staff' => UserRole.staff,
+    'company' => UserRole.company,
+    'alumni' => UserRole.alumni,
+    _ => UserRole.student,
+  };
 
   String _titleForRole(String role) => switch (role) {
-        'staff' => 'Staff del Liceo',
-        'company' => 'Representante de Empresa',
-        _ => 'Estudiante',
-      };
+    'staff' => 'Staff del Liceo',
+    'company' => 'Representante de Empresa',
+    'alumni' => 'Egresado / Alumni',
+    _ => 'Estudiante',
+  };
 
   void _goToRegister() {
     Navigator.of(context).push(
@@ -358,7 +433,11 @@ class _FormField extends StatelessWidget {
               color: AppColors.textTertiary,
               fontSize: 14,
             ),
-            prefixIcon: Icon(prefixIcon, size: 18, color: AppColors.textTertiary),
+            prefixIcon: Icon(
+              prefixIcon,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: AppColors.background,
@@ -376,7 +455,10 @@ class _FormField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

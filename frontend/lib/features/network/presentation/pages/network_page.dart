@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/data/mock_data.dart';
+import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 
@@ -23,24 +24,37 @@ class _NetworkPageState extends State<NetworkPage> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final mobile = width < 760;
+    final pagePadding = mobile
+        ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
+        : const EdgeInsets.all(20);
     final query = _searchController.text.trim().toLowerCase();
-    final visible = suggestedUsers.where((u) {
-      if (query.isEmpty) return true;
-      return u.name.toLowerCase().contains(query) ||
-          u.title.toLowerCase().contains(query) ||
-          u.skills.any((skill) => skill.toLowerCase().contains(query));
-    }).toList(growable: false);
+    final visible = suggestedUsers
+        .where((u) {
+          if (query.isEmpty) return true;
+          return u.name.toLowerCase().contains(query) ||
+              u.title.toLowerCase().contains(query) ||
+              u.skills.any((skill) => skill.toLowerCase().contains(query));
+        })
+        .toList(growable: false);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tu Red Profesional',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
+          Text(
+            'Tu Red Profesional',
+            style: TextStyle(
+              fontSize: mobile ? 26 : 34,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           const SizedBox(height: 4),
           const Text(
-              'Conecta con profesionales tecnicos y amplia tus oportunidades.'),
+            'Conecta con profesionales tecnicos y amplia tus oportunidades.',
+          ),
           const SizedBox(height: 16),
           KCard(
             child: TextField(
@@ -53,25 +67,48 @@ class _NetworkPageState extends State<NetworkPage> {
             ),
           ),
           const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth > 900;
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: wide ? 2 : 1,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: wide ? 3 : 4,
-                children: [
-                  _stats(Icons.people_alt_rounded,
-                      '${_connected.length + 234}', 'Conexiones totales'),
-                  _stats(Icons.person_add_alt_1_rounded,
-                      '${suggestedUsers.length}', 'Sugerencias para ti'),
-                ],
-              );
-            },
-          ),
+          if (mobile)
+            Column(
+              children: [
+                _stats(
+                  Icons.people_alt_rounded,
+                  '${_connected.length + 234}',
+                  'Conexiones totales',
+                ),
+                const SizedBox(height: 10),
+                _stats(
+                  Icons.person_add_alt_1_rounded,
+                  '${suggestedUsers.length}',
+                  'Sugerencias para ti',
+                ),
+              ],
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth > 900;
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: wide ? 2 : 1,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 3,
+                  children: [
+                    _stats(
+                      Icons.people_alt_rounded,
+                      '${_connected.length + 234}',
+                      'Conexiones totales',
+                    ),
+                    _stats(
+                      Icons.person_add_alt_1_rounded,
+                      '${suggestedUsers.length}',
+                      'Sugerencias para ti',
+                    ),
+                  ],
+                );
+              },
+            ),
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -81,6 +118,20 @@ class _NetworkPageState extends State<NetworkPage> {
               } else if (constraints.maxWidth > 760) {
                 cross = 2;
               }
+
+              if (cross == 1) {
+                return Column(
+                  children: visible
+                      .map(
+                        (user) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _networkUserCard(user),
+                        ),
+                      )
+                      .toList(growable: false),
+                );
+              }
+
               return GridView.builder(
                 itemCount: visible.length,
                 shrinkWrap: true,
@@ -93,134 +144,7 @@ class _NetworkPageState extends State<NetworkPage> {
                 ),
                 itemBuilder: (context, index) {
                   final user = visible[index];
-                  final connected = _connected.contains(user.id);
-                  return KCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 72,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color(0x140F766E),
-                                Color(0x0F00B5AD)
-                              ],
-                            ),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(17),
-                              topRight: Radius.circular(17),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Transform.translate(
-                                offset: const Offset(0, -30),
-                                child: CircleAvatar(
-                                  radius: 36,
-                                  backgroundColor: Colors.white,
-                                  child: CircleAvatar(
-                                    radius: 32,
-                                    backgroundImage: user.avatarUrl.trim().isNotEmpty
-                                        ? NetworkImage(user.avatarUrl)
-                                        : null,
-                                    child: user.avatarUrl.trim().isEmpty
-                                        ? const Icon(Icons.person_rounded)
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                              Text(user.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      fontSize: 18)),
-                              const SizedBox(height: 2),
-                              Text(user.title,
-                                  style: const TextStyle(
-                                      color: KairosPalette.secondary)),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  const Icon(Icons.pin_drop_rounded,
-                                      size: 16,
-                                      color: KairosPalette.secondary),
-                                  const SizedBox(width: 4),
-                                  Text(user.location,
-                                      style: const TextStyle(
-                                          color: KairosPalette.secondary)),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(user.bio,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: user.skills.take(3).map((skill) {
-                                  return Chip(
-                                    label: Text(skill),
-                                    side: BorderSide.none,
-                                    backgroundColor: KairosPalette.muted,
-                                  );
-                                }).toList(growable: false),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                '${user.connections} conexiones',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: KairosPalette.primary),
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => setState(() {
-                                        if (connected) {
-                                          _connected.remove(user.id);
-                                        } else {
-                                          _connected.add(user.id);
-                                        }
-                                      }),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: connected
-                                            ? KairosPalette.muted
-                                            : KairosPalette.accent,
-                                        foregroundColor: connected
-                                            ? KairosPalette.foreground
-                                            : Colors.white,
-                                      ),
-                                      icon: const Icon(
-                                          Icons.person_add_rounded,
-                                          size: 16),
-                                      label: Text(connected
-                                          ? 'Conectado'
-                                          : 'Conectar'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () {},
-                                      child: const Text('Ver perfil'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _networkUserCard(user);
                 },
               );
             },
@@ -245,17 +169,170 @@ class _NetworkPageState extends State<NetworkPage> {
             child: Icon(icon, color: KairosPalette.primary),
           ),
           const SizedBox(width: 12),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: MediaQuery.sizeOf(context).width < 760 ? 26 : 30,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: KairosPalette.secondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _networkUserCard(UserProfile user) {
+    final mobile = MediaQuery.sizeOf(context).width < 760;
+    final connected = _connected.contains(user.id);
+    return KCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: mobile ? 62 : 72,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0x140F766E), Color(0x0F00B5AD)],
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(17),
+                topRight: Radius.circular(17),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Transform.translate(
+                  offset: Offset(0, mobile ? -24 : -30),
+                  child: CircleAvatar(
+                    radius: mobile ? 32 : 36,
+                    backgroundColor: Colors.white,
+                    child: CircleAvatar(
+                      radius: mobile ? 28 : 32,
+                      backgroundImage: user.avatarUrl.trim().isNotEmpty
+                          ? NetworkImage(user.avatarUrl)
+                          : null,
+                      child: user.avatarUrl.trim().isEmpty
+                          ? const Icon(Icons.person_rounded)
+                          : null,
+                    ),
+                  ),
+                ),
+                Text(
+                  user.name,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: mobile ? 17 : 18,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  user.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: KairosPalette.secondary),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.pin_drop_rounded,
+                      size: 16,
+                      color: KairosPalette.secondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        user.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: KairosPalette.secondary),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  user.bio,
+                  maxLines: mobile ? 2 : 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: user.skills
+                      .take(mobile ? 2 : 3)
+                      .map((skill) {
+                        return Chip(
+                          label: Text(skill),
+                          side: BorderSide.none,
+                          backgroundColor: KairosPalette.muted,
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${user.connections} conexiones',
                   style: const TextStyle(
-                      fontSize: 30, fontWeight: FontWeight.w900)),
-              Text(label,
-                  style:
-                      const TextStyle(color: KairosPalette.secondary)),
-            ],
+                    fontWeight: FontWeight.w700,
+                    color: KairosPalette.primary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => setState(() {
+                          if (connected) {
+                            _connected.remove(user.id);
+                          } else {
+                            _connected.add(user.id);
+                          }
+                        }),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: connected
+                              ? KairosPalette.muted
+                              : KairosPalette.accent,
+                          foregroundColor: connected
+                              ? KairosPalette.foreground
+                              : Colors.white,
+                        ),
+                        icon: const Icon(Icons.person_add_rounded, size: 16),
+                        label: Text(connected ? 'Conectado' : 'Conectar'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        child: const Text('Ver perfil'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

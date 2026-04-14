@@ -73,7 +73,10 @@ class _KairosAppState extends State<KairosApp> {
       case 3:
         return ChatsPage(currentUser: _currentUser!);
       case 4:
-        return ProfilePage(currentUser: _currentUser!);
+        return ProfilePage(
+          currentUser: _currentUser!,
+          activeRole: _roleController.role,
+        );
       default:
         return HomePage(currentUser: _currentUser!, role: _roleController.role);
     }
