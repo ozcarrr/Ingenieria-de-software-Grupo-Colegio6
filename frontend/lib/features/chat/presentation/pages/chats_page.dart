@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/services/chat_hub_service.dart';
@@ -23,8 +24,13 @@ class _ChatsPageState extends State<ChatsPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  final _api = ApiClient();
+  List<ChatPreview> _conversations = [];
+  bool _loadingConversations = true;
+  bool _loadingThread = false;
+
   ChatPreview? _selected;
-  final List<ChatMessage> _thread = List<ChatMessage>.from(sampleConversation);
+  final List<ChatMessage> _thread = [];
 
   // ── SignalR ────────────────────────────────────────────────────────────────
   final _hub = ChatHubService();
@@ -37,9 +43,116 @@ class _ChatsPageState extends State<ChatsPage> {
   @override
   void initState() {
     super.initState();
-    if (chatPreviews.isNotEmpty) {
-      _selected = chatPreviews.first;
-      _initHub();
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    try {
+      final data = await _api.getConversations();
+      final conversations = data.cast<Map<String, dynamic>>().map((json) {
+        final lastAt = DateTime.tryParse(json['lastMessageAt'] as String? ?? '');
+        String ts = '';
+        if (lastAt != null) {
+          final diff = DateTime.now().toUtc().difference(lastAt.toUtc());
+          if (diff.inMinutes < 60) {
+            ts = 'Hace ${diff.inMinutes} min';
+          } else if (diff.inHours < 24) {
+            ts = 'Hace ${diff.inHours} h';
+          } else {
+            ts = 'Hace ${diff.inDays} días';
+          }
+        }
+        final user = UserProfile(
+          id: json['otherUserId'].toString(),
+          name: json['otherUserName'] as String? ?? 'Usuario',
+          role: UserRole.student,
+          title: json['otherUserTitle'] as String? ?? '',
+          avatarUrl: json['otherUserAvatarUrl'] as String? ?? '',
+          skills: const [],
+          bio: '',
+          location: '',
+          connections: 0,
+        );
+        return ChatPreview(
+          id: json['otherUserId'].toString(),
+          user: user,
+          lastMessage: json['lastMessage'] as String? ?? '',
+          timestamp: ts,
+          unread: json['hasUnread'] as bool? ?? false,
+        );
+      }).toList();
+
+      if (mounted) {
+        setState(() => _conversations = conversations);
+        if (conversations.isNotEmpty && _selected == null) {
+          await _selectConversation(conversations.first);
+        }
+      }
+    } catch (_) {
+      // Fall back to mock data
+      if (mounted) {
+        setState(() => _conversations = chatPreviews);
+        if (chatPreviews.isNotEmpty && _selected == null) {
+          _selected = chatPreviews.first;
+          _thread
+            ..clear()
+            ..addAll(sampleConversation);
+          _initHub();
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _loadingConversations = false);
+    }
+  }
+
+  Future<void> _loadThread(String otherUserId) async {
+    final otherId = int.tryParse(otherUserId);
+    if (otherId == null) {
+      // Mock fallback
+      setState(() {
+        _thread
+          ..clear()
+          ..addAll(sampleConversation);
+      });
+      return;
+    }
+
+    setState(() => _loadingThread = true);
+    try {
+      final data = await _api.getMessages(otherId);
+      final messages = data.cast<Map<String, dynamic>>().map((json) {
+        final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
+        final ts = createdAt != null
+            ? '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}'
+            : '';
+        final senderId = json['senderId'].toString();
+        final isMine = senderId == widget.currentUser.id;
+        return ChatMessage(
+          id: json['id'].toString(),
+          text: json['content'] as String? ?? '',
+          timestamp: ts,
+          isMine: isMine,
+          senderId: senderId,
+        );
+      }).toList();
+      if (mounted) {
+        setState(() {
+          _thread
+            ..clear()
+            ..addAll(messages);
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _thread
+            ..clear()
+            ..addAll(sampleConversation);
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _loadingThread = false);
     }
   }
 
@@ -47,7 +160,8 @@ class _ChatsPageState extends State<ChatsPage> {
     final selected = _selected;
     if (selected == null) return;
 
-    await _hub.connect();
+    final token = await _api.getToken();
+    await _hub.connect(token: token);
     if (!mounted) return;
 
     // Join initial conversation group
@@ -112,12 +226,16 @@ class _ChatsPageState extends State<ChatsPage> {
     setState(() {
       _selected = chat;
       _isTyping = false;
-      _thread
-        ..clear()
-        ..addAll(sampleConversation);
+      _thread.clear();
     });
 
-    if (_hub.isConnected) {
+    // Load messages from API
+    await _loadThread(chat.user.id);
+
+    // Join new SignalR group
+    if (!_hub.isConnected) {
+      await _initHub();
+    } else {
       await _hub.joinConversation(widget.currentUser.id, chat.user.id);
     }
   }
@@ -132,24 +250,32 @@ class _ChatsPageState extends State<ChatsPage> {
     if (text.isEmpty) return;
     _inputController.clear();
 
-    if (_hub.isConnected) {
-      // Hub will echo back via ReceiveMessage → handled in _msgSub listener
-      await _hub.sendMessage(widget.currentUser.id, selected.user.id, text);
-    } else {
-      // Offline fallback: add locally
-      setState(() {
-        _thread.add(
-          ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            text: text,
-            timestamp: _timeNow(),
-            isMine: true,
-            senderId: widget.currentUser.id,
-          ),
-        );
-      });
-    }
+    // Optimistically add message to UI
+    final optimistic = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: text,
+      timestamp: _timeNow(),
+      isMine: true,
+      senderId: widget.currentUser.id,
+    );
+    setState(() => _thread.add(optimistic));
     _scrollToBottom();
+
+    final receiverId = int.tryParse(selected.user.id);
+
+    if (receiverId != null) {
+      // Persist via REST API
+      try {
+        await _api.sendMessage(receiverId, text);
+      } catch (_) {
+        // Message was already shown optimistically — keep it
+      }
+    }
+
+    // Also send via SignalR for real-time delivery to other party
+    if (_hub.isConnected) {
+      await _hub.sendMessage(widget.currentUser.id, selected.user.id, text);
+    }
   }
 
   // ── Typing notification ────────────────────────────────────────────────────
@@ -195,7 +321,8 @@ class _ChatsPageState extends State<ChatsPage> {
         .toDouble();
     final query = _searchController.text.trim().toLowerCase();
 
-    final conversations = chatPreviews
+    final allConvs = _conversations.isNotEmpty ? _conversations : chatPreviews;
+    final conversations = allConvs
         .where((chat) {
           if (query.isEmpty) return true;
           return chat.user.name.toLowerCase().contains(query) ||
@@ -471,7 +598,9 @@ class _ChatsPageState extends State<ChatsPage> {
 
         // Messages
         Expanded(
-          child: ListView.builder(
+          child: _loadingThread
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(14),
             itemCount: _thread.length + (_isTyping ? 1 : 0),

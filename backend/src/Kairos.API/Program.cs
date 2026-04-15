@@ -108,27 +108,6 @@ if (app.Environment.IsDevelopment())
     await DevDataSeeder.SeedAsync(app.Services);
 
 // ── Middleware pipeline ────────────────────────────────────────────────────────
-// CORS manual — responde al preflight OPTIONS directamente antes de cualquier otro middleware
-app.Use(async (context, next) =>
-{
-    var origin = context.Request.Headers["Origin"].ToString();
-    if (!string.IsNullOrEmpty(origin))
-    {
-        context.Response.Headers["Access-Control-Allow-Origin"]      = origin;
-        context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
-        context.Response.Headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, DELETE, OPTIONS, PATCH";
-        context.Response.Headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization, Accept, X-Requested-With";
-    }
-
-    if (context.Request.Method == "OPTIONS")
-    {
-        context.Response.StatusCode = 200;
-        await context.Response.CompleteAsync();
-        return;
-    }
-
-    await next();
-});
 app.UseCors();
 
 if (!app.Environment.IsDevelopment())

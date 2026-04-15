@@ -17,6 +17,6 @@ public class LoginCommandHandler(IApplicationDbContext db, IJwtService jwtServic
             throw new UnauthorizedAccessException("Credenciales inválidas.");
 
         var token = jwtService.GenerateToken(user);
-        return new LoginResult(token, user.FullName, user.ProfilePictureUrl, user.Role);
+        return new LoginResult(token, user.FullName, user.ProfilePictureUrl, user.Role, user.Institution);
     }
 }

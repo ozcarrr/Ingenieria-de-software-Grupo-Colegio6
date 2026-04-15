@@ -22,6 +22,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<JobPosting>     JobPostings     { get; set; }
     public DbSet<JobApplication> JobApplications { get; set; }
     public DbSet<UserActivity>   UserActivities  { get; set; }
+    public DbSet<Message>        Messages        { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -214,6 +215,30 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
             // Índice para el generador de CV — trae todas las actividades de un usuario
             e.HasIndex(a => new { a.UserId, a.CreatedAt });
+        });
+
+        // ════════════════════════════════════════════════════
+        //  MESSAGE  (direct messages between users)
+        // ════════════════════════════════════════════════════
+        modelBuilder.Entity<Message>(e =>
+        {
+            e.ToTable("messages");
+
+            e.HasKey(m => m.Id);
+            e.Property(m => m.Content).HasMaxLength(2000).IsRequired();
+
+            e.HasOne(m => m.Sender)
+             .WithMany()
+             .HasForeignKey(m => m.SenderId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(m => m.Receiver)
+             .WithMany()
+             .HasForeignKey(m => m.ReceiverId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            // Índice para cargar la conversación entre dos usuarios
+            e.HasIndex(m => new { m.SenderId, m.ReceiverId, m.CreatedAt });
         });
     }
 }

@@ -19,7 +19,8 @@ class ApiClient {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         try {
-          final token = await _storage.read(key: _tokenKey);
+          final token = await _storage.read(key: _tokenKey)
+              .timeout(const Duration(seconds: 3));
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -28,9 +29,7 @@ class ApiClient {
         }
         return handler.next(options);
       },
-      onError: (error, handler) {
-        return handler.next(error);
-      },
+      onError: (error, handler) => handler.next(error),
     ));
   }
 
@@ -86,7 +85,7 @@ class ApiClient {
     return response.data as Map<String, dynamic>;
   }
 
-  // ── Feed ────────────────────────────────────────────────────────────────────
+  // ── Feed / Posts ─────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getFeed({int page = 1, int pageSize = 20}) async {
     final response = await _dio.get('/posts/feed', queryParameters: {
@@ -98,7 +97,7 @@ class ApiClient {
 
   Future<int> createPost({
     required String content,
-    String postType = 'Regular',
+    String postType = 'general',
     String? imageUrl,
     String? eventDate,
   }) async {
@@ -111,11 +110,116 @@ class ApiClient {
     return response.data as int;
   }
 
+  /// Toggle like on a post. Returns the new likes count.
+  Future<Map<String, dynamic>> toggleLike(int postId) async {
+    final response = await _dio.post('/posts/$postId/like');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getComments(int postId,
+      {int page = 1, int pageSize = 20}) async {
+    final response = await _dio.get(
+      '/posts/$postId/comments',
+      queryParameters: {'page': page, 'pageSize': pageSize},
+    );
+    return response.data as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> addComment(int postId, String content) async {
+    final response = await _dio.post('/posts/$postId/comments', data: {
+      'content': content,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  // ── Jobs ─────────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getJobs({
+    String? search,
+    String status = 'Open',
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final response = await _dio.get('/jobs', queryParameters: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      'status': status,
+      'page': page,
+      'pageSize': pageSize,
+    });
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<int> createJobPosting({
+    required String title,
+    required String description,
+    String? location,
+    DateTime? expiresAt,
+  }) async {
+    final response = await _dio.post('/jobs', data: {
+      'title': title,
+      'description': description,
+      if (location != null) 'location': location,
+      if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
+    });
+    return response.data as int;
+  }
+
+  Future<int> applyToJob(int jobId, {String? cvUrl}) async {
+    final response = await _dio.post('/jobs/$jobId/apply', data: {
+      if (cvUrl != null) 'cvUrl': cvUrl,
+    });
+    return response.data as int;
+  }
+
+  // ── Network ──────────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getNetworkSuggestions(
+      {int page = 1, int pageSize = 20}) async {
+    final response = await _dio.get('/network/suggestions', queryParameters: {
+      'page': page,
+      'pageSize': pageSize,
+    });
+    return response.data as List<dynamic>;
+  }
+
+  Future<void> followUser(int userId) async {
+    await _dio.post('/network/$userId/follow');
+  }
+
+  Future<void> unfollowUser(int userId) async {
+    await _dio.delete('/network/$userId/follow');
+  }
+
+  // ── Chat ─────────────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getConversations() async {
+    final response = await _dio.get('/chat/conversations');
+    return response.data as List<dynamic>;
+  }
+
+  Future<List<dynamic>> getMessages(int otherUserId,
+      {int page = 1, int pageSize = 40}) async {
+    final response = await _dio.get(
+      '/chat/messages/$otherUserId',
+      queryParameters: {'page': page, 'pageSize': pageSize},
+    );
+    return response.data as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> sendMessage(
+      int receiverId, String content) async {
+    final response = await _dio
+        .post('/chat/messages/$receiverId', data: {'content': content});
+    return response.data as Map<String, dynamic>;
+  }
+
   // ── Storage ─────────────────────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> uploadFile(String filePath, String contentType) async {
+  Future<Map<String, dynamic>> uploadFile(
+      String filePath, String contentType) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath, filename: filePath.split('/').last),
+      'file': await MultipartFile.fromFile(filePath,
+          filename: filePath.split('/').last),
     });
     final response = await _dio.post(
       '/storage/upload',
@@ -134,6 +238,17 @@ class ApiClient {
         if (month != null) 'month': month,
         if (year != null) 'year': year,
       },
+      options: Options(responseType: ResponseType.bytes),
+    );
+    return response.data!;
+  }
+
+  // ── Curriculum ───────────────────────────────────────────────────────────────
+
+  /// Generate and download a full CV PDF built from the user's activity history.
+  Future<List<int>> downloadCurriculum() async {
+    final response = await _dio.get<List<int>>(
+      '/curriculum/me',
       options: Options(responseType: ResponseType.bytes),
     );
     return response.data!;

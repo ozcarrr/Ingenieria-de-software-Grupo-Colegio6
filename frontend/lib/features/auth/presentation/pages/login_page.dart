@@ -42,6 +42,7 @@ class _LoginPageState extends State<LoginPage> {
       final token = response['token'] as String;
       final fullName = response['fullName'] as String? ?? 'Usuario';
       final avatarUrl = response['profilePictureUrl'] as String? ?? '';
+      final institution = response['institution'] as String?;
 
       await client.saveToken(token);
 
@@ -56,6 +57,7 @@ class _LoginPageState extends State<LoginPage> {
         bio: '',
         location: '',
         connections: 0,
+        institution: institution,
       );
 
       if (!mounted) return;
@@ -135,8 +137,9 @@ class _LoginPageState extends State<LoginPage> {
       avatarUrl: '',
       skills: const [],
       bio: 'Modo demo sin conexion al backend.',
-      location: 'Liceo Tecnico Cardenal Jose Maria Caro',
+      location: 'La Florida, Santiago',
       connections: 0,
+      institution: role == UserRole.company ? null : 'Liceo Tecnico Cardenal Jose Maria Caro',
     );
   }
 

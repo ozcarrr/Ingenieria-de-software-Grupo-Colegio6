@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/services/social_hub_service.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
+import '../../../home/data/models/post_model.dart';
 import '../../../staff/presentation/pages/staff_management_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,9 +25,19 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _postController = TextEditingController();
   final FocusNode _postFocusNode = FocusNode();
 
-  // ── SignalR live updates ───────────────────────────────────────────────────
-  // Call connectHub(jwt) from the parent after successful login.
+  final _api = ApiClient();
+  List<PostModel> _posts = [];
+  bool _feedLoading = true;
+  String? _feedError;
+  bool _publishing = false;
+
   SocialHubService? hub;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+  }
 
   @override
   void dispose() {
@@ -33,6 +45,50 @@ class _HomePageState extends State<HomePage> {
     _postController.dispose();
     hub?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadFeed() async {
+    setState(() {
+      _feedLoading = true;
+      _feedError = null;
+    });
+    try {
+      final data = await _api.getFeed();
+      final items = (data['items'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>()
+          .map(PostModel.fromJson)
+          .toList();
+      if (mounted) setState(() => _posts = items);
+    } catch (_) {
+      // Fall back to mock data when backend is unavailable
+      if (mounted) setState(() => _posts = posts);
+    } finally {
+      if (mounted) setState(() => _feedLoading = false);
+    }
+  }
+
+  Future<void> _publishPost() async {
+    final text = _postController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _publishing = true);
+    try {
+      await _api.createPost(content: text, postType: 'general');
+      _postController.clear();
+      _postFocusNode.unfocus();
+      await _loadFeed();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo publicar. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
   }
 
   @override
@@ -133,7 +189,7 @@ class _HomePageState extends State<HomePage> {
     final currentAvatar = widget.currentUser.avatarUrl.trim();
     return Column(
       children: [
-        // ── Banner de gestión para staff ────────────────────────────────────
+        // ── Banner de gestión para staff ─────────────────────────────────────
         if (isStaff)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -195,6 +251,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
+
+        // ── Post composer ─────────────────────────────────────────────────────
         KCard(
           child: Column(
             children: [
@@ -226,7 +284,7 @@ class _HomePageState extends State<HomePage> {
                           keyboardType: TextInputType.multiline,
                           textInputAction: TextInputAction.newline,
                           decoration: InputDecoration(
-                            hintText: 'Que quieres compartir hoy?',
+                            hintText: '¿Qué quieres compartir hoy?',
                             filled: true,
                             fillColor: KairosPalette.background,
                             isDense: true,
@@ -261,7 +319,6 @@ class _HomePageState extends State<HomePage> {
                             if (!_postFocusNode.hasFocus) {
                               return const SizedBox.shrink();
                             }
-
                             return Column(
                               children: [
                                 const SizedBox(height: 4),
@@ -302,13 +359,46 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
+
         const SizedBox(height: 16),
-        ...posts.map(
-          (post) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: PostCard(post: post),
+
+        // ── Feed ──────────────────────────────────────────────────────────────
+        if (_feedLoading)
+          const Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_feedError != null)
+          KCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_feedError!)),
+                  TextButton(
+                    onPressed: _loadFeed,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else if (_posts.isEmpty)
+          const KCard(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: Text('No hay publicaciones aún.')),
+            ),
+          )
+        else
+          ..._posts.map(
+            (post) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: PostCard(post: post),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -328,13 +418,13 @@ class _HomePageState extends State<HomePage> {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'Consejos del dia',
+                    'Consejos del día',
                     style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              _tip('Completa tu perfil para recibir mas visitas.'),
+              _tip('Completa tu perfil para recibir más visitas.'),
               _tip('Agrega certificaciones y proyectos para destacar.'),
             ],
           ),
@@ -388,7 +478,7 @@ class _HomePageState extends State<HomePage> {
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
                 ),
                 const SizedBox(height: 6),
-                const Text('Encuentra talento tecnico para tu empresa.'),
+                const Text('Encuentra talento técnico para tu empresa.'),
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
@@ -396,7 +486,7 @@ class _HomePageState extends State<HomePage> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: KairosPalette.accent,
                     ),
-                    onPressed: () {},
+                    onPressed: () => _showCreateOfferDialog(context),
                     child: const Text('Crear oferta laboral'),
                   ),
                 ),
@@ -490,7 +580,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _accentAction(IconData icon, String label) {
     return ElevatedButton.icon(
-      onPressed: () {},
+      onPressed: () => _showCreateOfferDialog(context),
       icon: Icon(icon, size: 16),
       label: Text(label),
       style: ElevatedButton.styleFrom(
@@ -503,12 +593,121 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _showCreateOfferDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool submitting = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: const Text(
+            'Publicar oferta laboral',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: SizedBox(
+            width: 480,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Cargo / título *',
+                      hintText: 'Ej: Técnico en Automatización',
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción *',
+                      hintText: 'Describe las responsabilidades del cargo',
+                    ),
+                    maxLines: 3,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: locationCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Ubicación',
+                      hintText: 'Ej: Santiago, Chile',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setInner(() => submitting = true);
+                      try {
+                        await _api.createJobPosting(
+                          title: titleCtrl.text.trim(),
+                          description: descCtrl.text.trim(),
+                          location: locationCtrl.text.trim().isEmpty
+                              ? null
+                              : locationCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('Oferta publicada exitosamente.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        setInner(() => submitting = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('No se pudo publicar la oferta.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Publicar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _publishAction() {
     return SizedBox(
       width: 116,
       height: 40,
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: _publishing ? null : _publishPost,
         style: ElevatedButton.styleFrom(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -517,10 +716,19 @@ class _HomePageState extends State<HomePage> {
           elevation: 4,
           shadowColor: KairosPalette.primary.withValues(alpha: 0.35),
         ),
-        child: const Text(
-          'Publicar',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        child: _publishing
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'Publicar',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }

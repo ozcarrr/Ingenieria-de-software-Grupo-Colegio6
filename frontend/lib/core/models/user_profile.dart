@@ -35,6 +35,7 @@ class UserProfile {
     required this.bio,
     required this.location,
     required this.connections,
+    this.institution,
     this.specialization,
     this.graduationYear,
     this.socioemotionalTest,
@@ -49,6 +50,7 @@ class UserProfile {
   final String bio;
   final String location;
   final int connections;
+  final String? institution;
   final String? specialization;
   final int? graduationYear;
   final SocioemotionalTest? socioemotionalTest;

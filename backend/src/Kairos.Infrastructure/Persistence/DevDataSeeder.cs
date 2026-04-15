@@ -12,47 +12,204 @@ public static class DevDataSeeder
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
+        // Apply any pending migrations automatically on startup
         await db.Database.MigrateAsync();
 
-        // ── Usuarios de testeo ──────────────────────────────────────────────
+        // ── Usuarios de testeo ──────────────────────────────────────────────────
         var testUsers = new[]
         {
             new
             {
-                Username = "kairos_user1",
-                Email    = "kairos_user1@kairos.cl",
-                Password = "Kairos2026!",
-                FullName = "Usuario Estudiante",
-                Role     = "student",
+                Username    = "kairos_user1",
+                Email       = "kairos_user1@kairos.cl",
+                Password    = "Kairos2026!",
+                FullName    = "Ana González Rojas",
+                Role        = "student",
                 Institution = "Liceo Técnico Cardenal José María Caro",
+                Bio         = "Estudiante de 4° año en Mecatrónica. Apasionada por la automatización y robótica.",
             },
             new
             {
-                Username = "kairos_user2",
-                Email    = "kairos_user2@kairos.cl",
-                Password = "Kairos2026!",
-                FullName = "Usuario Staff",
-                Role     = "staff",
+                Username    = "kairos_user2",
+                Email       = "kairos_user2@kairos.cl",
+                Password    = "Kairos2026!",
+                FullName    = "Carlos Méndez Torres",
+                Role        = "staff",
                 Institution = "Liceo Técnico Cardenal José María Caro",
+                Bio         = "Jefe de Especialidad — Mecatrónica y Automatización Industrial.",
+            },
+            new
+            {
+                Username    = "empresa_kairos",
+                Email       = "empresa@kairos.cl",
+                Password    = "Kairos2026!",
+                FullName    = "Automatización Industrial S.A.",
+                Role        = "company",
+                Institution = "Santiago, Chile",
+                Bio         = "Empresa líder en soluciones de automatización para la industria nacional.",
             },
         };
 
+        int? companyId = null;
+        int? studentId = null;
+
         foreach (var seed in testUsers)
         {
-            var exists = await db.Users.AnyAsync(u => u.Username == seed.Username);
-            if (exists) continue;
-
-            db.Users.Add(new User
+            var existing = await db.Users.FirstOrDefaultAsync(u => u.Username == seed.Username);
+            if (existing != null)
             {
-                Username    = seed.Username,
-                Email       = seed.Email,
+                if (seed.Role == "company") companyId = existing.Id;
+                if (seed.Role == "student") studentId = existing.Id;
+                continue;
+            }
+
+            var user = new User
+            {
+                Username     = seed.Username,
+                Email        = seed.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(seed.Password),
-                FullName    = seed.FullName,
-                Role        = seed.Role,
-                Institution = seed.Institution,
-            });
+                FullName     = seed.FullName,
+                Role         = seed.Role,
+                Institution  = seed.Institution,
+                Bio          = seed.Bio,
+            };
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+
+            if (seed.Role == "company") companyId = user.Id;
+            if (seed.Role == "student") studentId = user.Id;
         }
 
-        await db.SaveChangesAsync();
+        // ── Actividades del estudiante (alimentan el CV) ────────────────────────
+        if (studentId.HasValue)
+        {
+            var hasActivities = await db.UserActivities.AnyAsync(a => a.UserId == studentId.Value);
+            if (!hasActivities)
+            {
+                var now = DateTime.UtcNow;
+                db.UserActivities.AddRange(
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.Login,
+                        Description  = "Inicio de sesión en la plataforma Kairos",
+                        CreatedAt    = now.AddDays(-30),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.PostCreated,
+                        Description  = "Publicó un proyecto: 'Brazo robótico controlado por Arduino'",
+                        CreatedAt    = now.AddDays(-25),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.PostCreated,
+                        Description  = "Compartió avance de práctica: 'Automatización de línea de ensamblaje'",
+                        CreatedAt    = now.AddDays(-18),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.CommentPosted,
+                        Description  = "Participó en foro técnico sobre sensores industriales",
+                        CreatedAt    = now.AddDays(-15),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.ProfileUpdated,
+                        Description  = "Actualizó habilidades técnicas: PLC Siemens, Arduino, SolidWorks",
+                        CreatedAt    = now.AddDays(-12),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.JobApplied,
+                        Description  = "Postulación enviada a: Técnico en Automatización — Automatización Industrial S.A.",
+                        CreatedAt    = now.AddDays(-5),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.FollowedUser,
+                        Description  = "Conectó con la empresa Automatización Industrial S.A.",
+                        CreatedAt    = now.AddDays(-4),
+                    },
+                    new UserActivity
+                    {
+                        UserId       = studentId.Value,
+                        ActivityType = ActivityType.PostLiked,
+                        Description  = "Interactuó con publicación sobre robótica industrial",
+                        CreatedAt    = now.AddDays(-2),
+                    }
+                );
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // ── Oferta laboral de demo (empresa → visible para el estudiante) ───────
+        if (companyId.HasValue)
+        {
+            var hasJobs = await db.JobPostings.AnyAsync(j => j.CompanyId == companyId.Value);
+            if (!hasJobs)
+            {
+                db.JobPostings.AddRange(
+                    new JobPosting
+                    {
+                        CompanyId   = companyId.Value,
+                        Title       = "Técnico en Automatización Industrial",
+                        Description = "Buscamos egresado o estudiante de último año en Mecatrónica o Automatización. " +
+                                      "Trabajarás en proyectos de automatización de líneas de producción con PLCs Siemens y Schneider. " +
+                                      "Jornada completa, contrato por proyecto con posibilidad de planta.",
+                        Location    = "Pudahuel, Santiago",
+                        Status      = JobStatus.Open,
+                        CreatedAt   = DateTime.UtcNow.AddDays(-7),
+                        ExpiresAt   = DateTime.UtcNow.AddDays(23),
+                    },
+                    new JobPosting
+                    {
+                        CompanyId   = companyId.Value,
+                        Title       = "Práctica Profesional — Programación PLC",
+                        Description = "Práctica de 6 meses para estudiantes de 4° año de Mecatrónica. " +
+                                      "Aprenderás a programar PLCs en lenguaje Ladder y FBD, además de configurar HMI industriales. " +
+                                      "Asignación mensual + colación.",
+                        Location    = "Maipú, Santiago",
+                        Status      = JobStatus.Open,
+                        CreatedAt   = DateTime.UtcNow.AddDays(-3),
+                        ExpiresAt   = DateTime.UtcNow.AddDays(27),
+                    }
+                );
+                await db.SaveChangesAsync();
+            }
+        }
+
+        // ── Posts de demo en el feed ───────────────────────────────────────────
+        var hasSeededPosts = await db.Posts.AnyAsync();
+        if (!hasSeededPosts && studentId.HasValue && companyId.HasValue)
+        {
+            db.Posts.AddRange(
+                new Post
+                {
+                    AuthorId  = studentId.Value,
+                    Content   = "¡Terminé mi proyecto de brazo robótico controlado por Arduino! 🤖 " +
+                                "Fue un desafío increíble aprender programación en C++ y diseñar los servomotores. " +
+                                "Gracias a todos los que me apoyaron en Kairos.",
+                    Type      = PostType.General,
+                    CreatedAt = DateTime.UtcNow.AddHours(-8),
+                },
+                new Post
+                {
+                    AuthorId  = companyId.Value,
+                    Content   = "¡Estamos buscando talento técnico! 🏭 " +
+                                "Abrimos dos posiciones para egresados y practicantes de Mecatrónica. " +
+                                "Si te apasiona la automatización industrial, postula ahora en Kairos.",
+                    Type      = PostType.General,
+                    CreatedAt = DateTime.UtcNow.AddHours(-3),
+                }
+            );
+            await db.SaveChangesAsync();
+        }
     }
 }

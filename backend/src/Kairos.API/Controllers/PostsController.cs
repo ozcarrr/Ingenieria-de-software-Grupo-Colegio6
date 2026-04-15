@@ -1,6 +1,9 @@
 using System.Security.Claims;
+using Kairos.Application.Features.Posts.Commands.AddComment;
 using Kairos.Application.Features.Posts.Commands.CreatePost;
+using Kairos.Application.Features.Posts.Commands.LikePost;
 using Kairos.Application.Features.Posts.Queries.GetFeed;
+using Kairos.Application.Features.Posts.Queries.GetPostComments;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +15,13 @@ namespace Kairos.API.Controllers;
 [Authorize]
 public class PostsController(IMediator mediator) : ControllerBase
 {
-    /// <summary>
-    /// Returns a paginated feed of all posts, newest first.
-    /// Each item includes the author's role so the client can render
-    /// type-specific UI (event badge, job card, etc.).
-    /// </summary>
+    private int GetUserId() => int.Parse(
+        User.FindFirstValue(ClaimTypes.NameIdentifier)
+        ?? User.FindFirstValue("sub")
+        ?? throw new UnauthorizedAccessException());
+
+    // ── Feed ─────────────────────────────────────────────────────────────────
+
     [HttpGet("feed")]
     [ProducesResponseType(typeof(GetFeedResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFeed(
@@ -28,51 +33,67 @@ public class PostsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Create a post.
-    ///
-    /// PostType rules:
-    ///   - "general" → any authenticated user
-    ///   - "event"   → company or staff only; EventDate is required
-    ///   - "job"     → company only
-    ///
-    /// Returns 201 with the new post ID on success.
-    /// Returns 400 for validation errors, 403 for role violations.
-    /// </summary>
+    // ── Create post ───────────────────────────────────────────────────────────
+
     [HttpPost]
     [ProducesResponseType(typeof(int), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CreatePost(
         [FromBody] CreatePostRequest request,
         CancellationToken ct)
     {
-        var authorId = int.Parse(
-            User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue("sub")
-            ?? throw new UnauthorizedAccessException());
-
-        var authorRole =
-            User.FindFirstValue(ClaimTypes.Role)
-            ?? "student";
+        var authorId   = GetUserId();
+        var authorRole = User.FindFirstValue(ClaimTypes.Role) ?? "student";
 
         var command = new CreatePostCommand(
-            authorId,
-            authorRole,
-            request.Content,
-            request.PostType,
-            request.ImageUrl,
-            request.EventDate);
+            authorId, authorRole, request.Content,
+            request.PostType, request.ImageUrl, request.EventDate);
 
         var postId = await mediator.Send(command, ct);
-
         return CreatedAtAction(nameof(GetFeed), new { id = postId }, postId);
+    }
+
+    // ── Like / Unlike (toggle) ────────────────────────────────────────────────
+
+    [HttpPost("{postId:int}/like")]
+    [ProducesResponseType(typeof(LikeResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ToggleLike(int postId, CancellationToken ct)
+    {
+        var newCount = await mediator.Send(new LikePostCommand(postId, GetUserId()), ct);
+        return Ok(new LikeResult(postId, newCount));
+    }
+
+    // ── Comments ──────────────────────────────────────────────────────────────
+
+    [HttpGet("{postId:int}/comments")]
+    [ProducesResponseType(typeof(IReadOnlyList<CommentDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetComments(
+        int postId,
+        [FromQuery] int page     = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct     = default)
+    {
+        var result = await mediator.Send(new GetPostCommentsQuery(postId, page, pageSize), ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{postId:int}/comments")]
+    [ProducesResponseType(typeof(CommentDto), StatusCodes.Status201Created)]
+    public async Task<IActionResult> AddComment(
+        int postId,
+        [FromBody] AddCommentRequest request,
+        CancellationToken ct)
+    {
+        var dto = await mediator.Send(new AddCommentCommand(postId, GetUserId(), request.Content), ct);
+        return CreatedAtAction(nameof(GetComments), new { postId }, dto);
     }
 }
 
-/// <summary>Request body for POST /api/posts.</summary>
 public record CreatePostRequest(
     string  Content,
-    string  PostType  = "general",   // "general" | "event" | "job"
+    string  PostType  = "general",
     string? ImageUrl  = null,
     string? EventDate = null);
+
+public record AddCommentRequest(string Content);
+
+public record LikeResult(int PostId, int LikesCount);

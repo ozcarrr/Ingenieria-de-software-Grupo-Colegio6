@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/utils/file_downloader.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../data/models/job_model.dart';
 
@@ -21,12 +23,93 @@ class _JobsPageState extends State<JobsPage> {
   OpportunityType? _selectedType;
   String? _selectedSpecialization;
 
+  final _api = ApiClient();
+  List<JobModel> _apiJobs = [];
+  bool _jobsLoading = true;
+  bool _generatingCv = false;
+  final Set<String> _appliedJobs = <String>{};
+
   static const List<String> _specializations = [
     'Mecatronica',
     'Automatizacion',
     'Recursos Humanos',
     'Mecanica',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJobs();
+  }
+
+  Future<void> _loadJobs() async {
+    try {
+      final data = await _api.getJobs();
+      final items = (data['items'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>()
+          .map(JobModel.fromJson)
+          .toList();
+      if (mounted) setState(() => _apiJobs = items);
+    } catch (_) {
+      // Fall back to mock data
+      if (mounted) setState(() => _apiJobs = []);
+    } finally {
+      if (mounted) setState(() => _jobsLoading = false);
+    }
+  }
+
+  Future<void> _generateCv() async {
+    setState(() => _generatingCv = true);
+    try {
+      final bytes = await _api.downloadCurriculum();
+      downloadFile(bytes, 'kairos-cv.pdf');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CV generado y descargado.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo generar el CV. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generatingCv = false);
+    }
+  }
+
+  Future<void> _applyToJob(JobModel job) async {
+    final jobId = int.tryParse(job.id);
+    if (jobId == null) return;
+    try {
+      await _api.applyToJob(jobId);
+      if (mounted) {
+        setState(() => _appliedJobs.add(job.id));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Postulación enviada a ${job.company}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo enviar la postulación.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -41,7 +124,8 @@ class _JobsPageState extends State<JobsPage> {
     final pagePadding = mobile
         ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
         : const EdgeInsets.all(20);
-    final filteredJobs = jobs.where(_matchesFilter).toList(growable: false);
+    final allJobs = _apiJobs.isNotEmpty ? _apiJobs : jobs;
+    final filteredJobs = allJobs.where(_matchesFilter).toList(growable: false);
     final isCompany = widget.role == UserRole.company;
 
     return SingleChildScrollView(
@@ -163,9 +247,18 @@ class _JobsPageState extends State<JobsPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.bolt_rounded),
-                          label: const Text('Generar CV'),
+                          onPressed: _generatingCv ? null : _generateCv,
+                          icon: _generatingCv
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.bolt_rounded),
+                          label: Text(_generatingCv ? 'Generando...' : 'Generar CV'),
                         ),
                       ),
                     ],
@@ -204,9 +297,18 @@ class _JobsPageState extends State<JobsPage> {
                         ),
                       ),
                       ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.bolt_rounded),
-                        label: const Text('Generar CV'),
+                        onPressed: _generatingCv ? null : _generateCv,
+                        icon: _generatingCv
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.bolt_rounded),
+                        label: Text(_generatingCv ? 'Generando...' : 'Generar CV'),
                       ),
                     ],
                   ),
@@ -268,7 +370,7 @@ class _JobsPageState extends State<JobsPage> {
               children: [
                 _statCard(
                   Icons.work_rounded,
-                  '${jobs.length}',
+                  '${filteredJobs.length}',
                   'Ofertas activas',
                 ),
                 const SizedBox(height: 10),
@@ -278,7 +380,7 @@ class _JobsPageState extends State<JobsPage> {
                   'Guardadas',
                 ),
                 const SizedBox(height: 10),
-                _statCard(Icons.schedule_rounded, '12', 'Nuevas esta semana'),
+                _statCard(Icons.schedule_rounded, '${_appliedJobs.length}', 'Postuladas'),
               ],
             )
           else
@@ -295,7 +397,7 @@ class _JobsPageState extends State<JobsPage> {
                   children: [
                     _statCard(
                       Icons.work_rounded,
-                      '${jobs.length}',
+                      '${filteredJobs.length}',
                       'Ofertas activas',
                     ),
                     _statCard(
@@ -305,8 +407,8 @@ class _JobsPageState extends State<JobsPage> {
                     ),
                     _statCard(
                       Icons.schedule_rounded,
-                      '12',
-                      'Nuevas esta semana',
+                      '${_appliedJobs.length}',
+                      'Postuladas',
                     ),
                   ],
                 );
@@ -350,11 +452,12 @@ class _JobsPageState extends State<JobsPage> {
 
   Widget _jobTile(JobModel job, {required bool mobile}) {
     final saved = _savedJobs.contains(job.id);
+    final applied = _appliedJobs.contains(job.id);
     final applyButtonStyle = ElevatedButton.styleFrom(
       minimumSize: Size(mobile ? 0 : 136, 40),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: KairosPalette.primary,
-      foregroundColor: Colors.white,
+      backgroundColor: applied ? KairosPalette.muted : KairosPalette.primary,
+      foregroundColor: applied ? KairosPalette.foreground : Colors.white,
       elevation: 0,
     );
     final actionButtonStyle = OutlinedButton.styleFrom(
@@ -443,9 +546,9 @@ class _JobsPageState extends State<JobsPage> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: applied ? null : () => _applyToJob(job),
                     style: applyButtonStyle,
-                    child: const Text('Aplicar'),
+                    child: Text(applied ? 'Postulado' : 'Aplicar'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -554,9 +657,9 @@ class _JobsPageState extends State<JobsPage> {
               Column(
                 children: [
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: applied ? null : () => _applyToJob(job),
                     style: applyButtonStyle,
-                    child: const Text('Aplicar'),
+                    child: Text(applied ? 'Postulado' : 'Aplicar'),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
@@ -669,19 +772,116 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   void _showCreateOfferDialog(BuildContext context) {
+    final titleCtrl       = TextEditingController();
+    final descCtrl        = TextEditingController();
+    final locationCtrl    = TextEditingController();
+    final formKey         = GlobalKey<FormState>();
+    bool  submitting      = false;
+
     showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Publicar oferta'),
-        content: const Text(
-          'Formulario listo para integracion con el backend C#.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cerrar'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: const Text(
+            'Publicar oferta laboral',
+            style: TextStyle(fontWeight: FontWeight.w800),
           ),
-        ],
+          content: SizedBox(
+            width: 480,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Cargo / título *',
+                      hintText: 'Ej: Técnico en Automatización',
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción *',
+                      hintText: 'Requisitos, beneficios, jornada...',
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 4,
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: locationCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Ubicación',
+                      hintText: 'Ej: Santiago, Chile',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: KairosPalette.accent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: submitting
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setInner(() => submitting = true);
+                      try {
+                        await _api.createJobPosting(
+                          title:       titleCtrl.text.trim(),
+                          description: descCtrl.text.trim(),
+                          location:    locationCtrl.text.trim().isNotEmpty
+                              ? locationCtrl.text.trim()
+                              : null,
+                        );
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                        await _loadJobs();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Oferta publicada exitosamente.'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (_) {
+                        setInner(() => submitting = false);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('No se pudo publicar la oferta.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Publicar'),
+            ),
+          ],
+        ),
       ),
     );
   }

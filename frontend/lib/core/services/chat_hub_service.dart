@@ -83,10 +83,10 @@ class ChatHubService {
       _invoke('LeaveConversation', [myId, peerId]);
 
   Future<void> sendMessage(String senderId, String peerId, String content) =>
-      _invoke('SendMessage', [senderId, peerId, content]);
+      _invoke('SendDirectMessage', [senderId, peerId, content]);
 
   Future<void> sendTyping(String senderId, String peerId) =>
-      _invoke('SendTyping', [senderId, peerId]);
+      _invoke('SendTypingDm', [senderId, peerId]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 

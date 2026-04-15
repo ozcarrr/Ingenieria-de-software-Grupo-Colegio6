@@ -33,4 +33,33 @@ class JobModel {
   final String postedDate;
   final String? salary;
   final List<String> specializations;
+
+  factory JobModel.fromJson(Map<String, dynamic> json) {
+    final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    String postedDate = '';
+    if (createdAt != null) {
+      final diff = DateTime.now().toUtc().difference(createdAt.toUtc());
+      if (diff.inDays == 0) {
+        postedDate = 'Hoy';
+      } else if (diff.inDays == 1) {
+        postedDate = 'Hace 1 día';
+      } else {
+        postedDate = 'Hace ${diff.inDays} días';
+      }
+    }
+
+    return JobModel(
+      id: json['id'].toString(),
+      company: json['companyName'] as String? ?? 'Empresa',
+      title: json['title'] as String? ?? '',
+      location: json['location'] as String? ?? 'Chile',
+      type: OpportunityType.job,
+      description: json['description'] as String? ?? '',
+      skills: const [],
+      logoUrl: json['companyAvatarUrl'] as String? ?? '',
+      postedDate: postedDate,
+      salary: null,
+      specializations: const [],
+    );
+  }
 }

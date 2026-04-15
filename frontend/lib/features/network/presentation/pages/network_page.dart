@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
@@ -16,6 +17,89 @@ class _NetworkPageState extends State<NetworkPage> {
   final TextEditingController _searchController = TextEditingController();
   final Set<String> _connected = <String>{};
 
+  final _api = ApiClient();
+  List<UserProfile> _apiSuggestions = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSuggestions();
+  }
+
+  Future<void> _loadSuggestions() async {
+    try {
+      final data = await _api.getNetworkSuggestions();
+      final users = data.cast<Map<String, dynamic>>().map((json) {
+        final roleStr = (json['role'] as String? ?? 'student').toLowerCase();
+        final role = switch (roleStr) {
+          'staff'   => UserRole.staff,
+          'company' => UserRole.company,
+          'alumni'  => UserRole.alumni,
+          _         => UserRole.student,
+        };
+        return UserProfile(
+          id: json['id'].toString(),
+          name: json['fullName'] as String? ?? 'Usuario',
+          role: role,
+          title: json['title'] as String? ?? json['otherUserTitle'] as String? ?? '',
+          avatarUrl: json['avatarUrl'] as String? ?? '',
+          skills: const [],
+          bio: json['bio'] as String? ?? '',
+          location: json['location'] as String? ?? '',
+          connections: json['followersCount'] as int? ?? 0,
+        );
+      }).toList();
+      if (mounted) setState(() => _apiSuggestions = users);
+    } catch (_) {
+      // Fall back to mock data
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleFollow(UserProfile user) async {
+    final userId = int.tryParse(user.id);
+    if (userId == null) {
+      setState(() {
+        if (_connected.contains(user.id)) {
+          _connected.remove(user.id);
+        } else {
+          _connected.add(user.id);
+        }
+      });
+      return;
+    }
+
+    final wasConnected = _connected.contains(user.id);
+    setState(() {
+      if (wasConnected) {
+        _connected.remove(user.id);
+      } else {
+        _connected.add(user.id);
+      }
+    });
+
+    try {
+      if (wasConnected) {
+        await _api.unfollowUser(userId);
+      } else {
+        await _api.followUser(userId);
+      }
+    } catch (_) {
+      // Revert on failure
+      if (mounted) {
+        setState(() {
+          if (wasConnected) {
+            _connected.add(user.id);
+          } else {
+            _connected.remove(user.id);
+          }
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -30,7 +114,9 @@ class _NetworkPageState extends State<NetworkPage> {
         ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
         : const EdgeInsets.all(20);
     final query = _searchController.text.trim().toLowerCase();
-    final visible = suggestedUsers
+    final allSuggestions =
+        _apiSuggestions.isNotEmpty ? _apiSuggestions : suggestedUsers;
+    final visible = allSuggestions
         .where((u) {
           if (query.isEmpty) return true;
           return u.name.toLowerCase().contains(query) ||
@@ -78,7 +164,7 @@ class _NetworkPageState extends State<NetworkPage> {
                 const SizedBox(height: 10),
                 _stats(
                   Icons.person_add_alt_1_rounded,
-                  '${suggestedUsers.length}',
+                  '${visible.length}',
                   'Sugerencias para ti',
                 ),
               ],
@@ -102,7 +188,7 @@ class _NetworkPageState extends State<NetworkPage> {
                     ),
                     _stats(
                       Icons.person_add_alt_1_rounded,
-                      '${suggestedUsers.length}',
+                      '${visible.length}',
                       'Sugerencias para ti',
                     ),
                   ],
@@ -303,13 +389,7 @@ class _NetworkPageState extends State<NetworkPage> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => setState(() {
-                          if (connected) {
-                            _connected.remove(user.id);
-                          } else {
-                            _connected.add(user.id);
-                          }
-                        }),
+                        onPressed: () => _toggleFollow(user),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: connected
                               ? KairosPalette.muted

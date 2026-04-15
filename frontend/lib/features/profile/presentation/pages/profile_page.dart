@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
+import '../../../../core/utils/file_downloader.dart';
 import '../../../../core/widgets/k_card.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -26,6 +27,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool _isUploadingAvatar = false;
   bool _isDownloadingReport = false;
+  bool _isDownloadingCv = false;
   String? _uploadedAvatarUrl;
 
   Future<void> _pickAndUploadAvatar() async {
@@ -62,11 +64,10 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final now = DateTime.now();
       final bytes = await _api.downloadReport(month: now.month, year: now.year);
+      downloadFile(bytes, 'kairos-reporte-${now.year}-${now.month.toString().padLeft(2, '0')}.pdf');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reporte descargado (${bytes.length} bytes).'),
-          ),
+          const SnackBar(content: Text('Reporte descargado.')),
         );
       }
     } catch (_) {
@@ -77,6 +78,34 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } finally {
       if (mounted) setState(() => _isDownloadingReport = false);
+    }
+  }
+
+  Future<void> _downloadCv() async {
+    setState(() => _isDownloadingCv = true);
+    try {
+      final bytes = await _api.downloadCurriculum();
+      final now = DateTime.now();
+      downloadFile(bytes, 'kairos-cv-${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}.pdf');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CV descargado exitosamente.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al generar el CV. Intenta de nuevo.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloadingCv = false);
     }
   }
 
@@ -101,12 +130,15 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildAbout(user),
               const SizedBox(height: 12),
               _buildSkills(user),
-              const SizedBox(height: 12),
-              _buildExperience(),
-              const SizedBox(height: 12),
-              _buildCertifications(),
-              const SizedBox(height: 12),
-              _buildProjects(),
+              if (widget.activeRole == UserRole.student ||
+                  widget.activeRole == UserRole.alumni) ...[
+                const SizedBox(height: 12),
+                _buildExperience(),
+                const SizedBox(height: 12),
+                _buildCertifications(),
+                const SizedBox(height: 12),
+                _buildProjects(),
+              ],
               const SizedBox(height: 12),
               _buildReportCard(),
             ],
@@ -240,11 +272,32 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
                 const SizedBox(height: 8),
+                if (user.institution != null && user.institution!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.account_balance_rounded,
+                            size: 16, color: KairosPalette.primary),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            user.institution!,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: KairosPalette.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Wrap(
                   spacing: 14,
                   runSpacing: 8,
                   children: [
-                    _meta(Icons.pin_drop_rounded, user.location),
+                    if (user.location.isNotEmpty)
+                      _meta(Icons.pin_drop_rounded, user.location),
                     _meta(
                       Icons.group_rounded,
                       '${user.connections} conexiones',
@@ -610,30 +663,53 @@ class _ProfilePageState extends State<ProfilePage> {
               Icon(Icons.picture_as_pdf_rounded, color: KairosPalette.primary),
               SizedBox(width: 8),
               Text(
-                'Reporte de actividad',
+                'Documentos PDF',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
               ),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Descarga un resumen PDF de tu participacion social del mes actual.',
+            'Genera y descarga tu CV o el reporte mensual de actividad.',
             style: TextStyle(color: KairosPalette.secondary),
           ),
           const SizedBox(height: 14),
+          // ── CV ──────────────────────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isDownloadingReport ? null : _downloadReport,
+              onPressed: _isDownloadingCv ? null : _downloadCv,
               style: ElevatedButton.styleFrom(
-                backgroundColor: KairosPalette.primary,
+                backgroundColor: KairosPalette.accent,
+              ),
+              icon: _isDownloadingCv
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.badge_rounded, size: 18),
+              label: Text(_isDownloadingCv ? 'Generando CV...' : 'Generar y descargar CV'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // ── Reporte mensual ─────────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isDownloadingReport ? null : _downloadReport,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: KairosPalette.primary,
+                side: const BorderSide(color: KairosPalette.primary),
               ),
               icon: _isDownloadingReport
                   ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
                         strokeWidth: 2,
                       ),
                     )
