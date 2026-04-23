@@ -11,6 +11,7 @@ class AppShell extends StatelessWidget {
     required this.onSelectIndex,
     required this.currentUser,
     required this.roleController,
+    required this.onLogout,
     required this.child,
     this.liveNotification,
   });
@@ -19,6 +20,7 @@ class AppShell extends StatelessWidget {
   final ValueChanged<int> onSelectIndex;
   final UserProfile currentUser;
   final UserRoleController roleController;
+  final VoidCallback onLogout;
   final Widget child;
   final String? liveNotification;
 
@@ -47,8 +49,8 @@ class AppShell extends StatelessWidget {
           title: _Brand(currentUser: currentUser),
           actions: [
             IconButton(
-              tooltip: 'Cambiar perfil',
-              onPressed: () => _openRoleSelector(context),
+              tooltip: 'Cerrar sesión',
+              onPressed: () => _confirmLogout(context),
               icon: const Icon(Icons.swap_horiz_rounded),
             ),
             const SizedBox(width: 8),
@@ -170,10 +172,10 @@ class AppShell extends StatelessWidget {
                           ),
                           const SizedBox(width: 10),
                           IconButton(
-                            tooltip: 'Cambiar perfil',
-                            onPressed: () => _openRoleSelector(context),
+                            tooltip: 'Cerrar sesión',
+                            onPressed: () => _confirmLogout(context),
                             icon: const Icon(
-                              Icons.swap_horiz_rounded,
+                              Icons.logout_rounded,
                               color: KairosPalette.secondary,
                             ),
                           ),
@@ -203,140 +205,29 @@ class AppShell extends StatelessWidget {
     );
   }
 
-  void _openRoleSelector(BuildContext context) {
+  void _confirmLogout(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) {
-        final screenSize = MediaQuery.sizeOf(context);
-        final isMobileSheet = screenSize.width < 720;
-
-        final roleCards = LayoutBuilder(
-          builder: (context, constraints) {
-            final maxWidth = constraints.maxWidth;
-            final singleColumn = maxWidth < 470;
-            final cardWidth = singleColumn ? maxWidth : (maxWidth - 12) / 2;
-
-            return Wrap(
-              alignment: WrapAlignment.center,
-              runAlignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 12,
-              children: UserRole.values
-                  .map((role) {
-                    final selected = role == roleController.role;
-                    return InkWell(
-                      onTap: () {
-                        roleController.setRole(role);
-                        Navigator.of(context).pop();
-                      },
-                      borderRadius: BorderRadius.circular(18),
-                      child: Container(
-                        width: cardWidth,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: selected
-                                ? KairosPalette.primary
-                                : KairosPalette.border,
-                            width: selected ? 2 : 1.2,
-                          ),
-                          color: selected ? KairosPalette.muted : Colors.white,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              _iconForRole(role),
-                              color: KairosPalette.primary,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _labelForRole(role),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: KairosPalette.secondary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _subtitleForRole(role),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: KairosPalette.foreground,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  })
-                  .toList(growable: false),
-            );
-          },
-        );
-
-        return Dialog(
-          insetPadding: isMobileSheet
-              ? const EdgeInsets.symmetric(horizontal: 10, vertical: 12)
-              : const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
           ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 560,
-              minHeight: isMobileSheet ? screenSize.height * 0.72 : 0,
-              maxHeight: isMobileSheet ? screenSize.height * 0.88 : 560,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: isMobileSheet
-                    ? MainAxisSize.max
-                    : MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cambiar perfil',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 6),
-                  const Text('Explora Kairos desde otra perspectiva.'),
-                  const SizedBox(height: 18),
-                  if (isMobileSheet)
-                    Expanded(child: SingleChildScrollView(child: roleCards))
-                  else
-                    roleCards,
-                ],
-              ),
-            ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(ctx);
+              onLogout();
+            },
+            child: const Text('Cerrar sesión', style: TextStyle(color: Colors.white)),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
-
-  String _labelForRole(UserRole role) => switch (role) {
-    UserRole.student => 'Estudiante',
-    UserRole.alumni => 'Egresado / Alumni',
-    UserRole.staff => 'Staff del Liceo',
-    UserRole.company => 'Empresa / Reclutador',
-  };
-
-  String _subtitleForRole(UserRole role) => switch (role) {
-    UserRole.student => 'Busca practicas y trabajos',
-    UserRole.alumni => 'Conecta con egresados y empresas',
-    UserRole.staff => 'Coordina y conecta estudiantes',
-    UserRole.company => 'Publica ofertas y recluta',
-  };
-
-  IconData _iconForRole(UserRole role) => switch (role) {
-    UserRole.student => Icons.school_rounded,
-    UserRole.alumni => Icons.rocket_launch_rounded,
-    UserRole.staff => Icons.badge_rounded,
-    UserRole.company => Icons.apartment_rounded,
-  };
 }
 
 // ── Live notification banner ───────────────────────────────────────────────────

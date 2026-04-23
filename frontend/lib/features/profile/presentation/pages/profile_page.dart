@@ -41,7 +41,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isUploadingAvatar = true);
     try {
-      final result = await _api.uploadFile(image.path, 'image/jpeg');
+      final result = await _api.uploadImage(image);
       setState(() => _uploadedAvatarUrl = result['cdnUrl'] as String?);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -16,6 +16,12 @@ public class LoginCommandHandler(IApplicationDbContext db, IJwtService jwtServic
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Credenciales inválidas.");
 
+        if (user.Status == "pending")
+            throw new UnauthorizedAccessException("Tu cuenta está pendiente de aprobación por el staff del liceo.");
+
+        if (user.Status == "rejected")
+            throw new UnauthorizedAccessException("Tu cuenta fue rechazada. Contacta al staff del liceo.");
+
         var token = jwtService.GenerateToken(user);
         return new LoginResult(token, user.FullName, user.ProfilePictureUrl, user.Role, user.Institution);
     }

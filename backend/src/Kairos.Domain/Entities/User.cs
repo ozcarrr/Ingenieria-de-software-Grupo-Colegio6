@@ -13,7 +13,8 @@ public class User
     public string? Bio              { get; set; }
     public string? ProfilePictureUrl{ get; set; }
     public string? Institution      { get; set; }  // Liceo o empresa
-    public string? Role             { get; set; }  // "student" | "company" | "backoffice"
+    public string? Role             { get; set; }  // "student" | "company" | "staff"
+    public string  Status           { get; set; } = "approved"; // "pending" | "approved" | "rejected"
     public DateTime CreatedAt       { get; set; } = DateTime.UtcNow;
 
     // Navegación (EF Core las usa para construir los JOINs)

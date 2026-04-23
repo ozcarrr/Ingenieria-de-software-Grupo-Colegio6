@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ApiClient {
   static const _baseUrl = 'http://localhost:5001/api';
@@ -229,6 +230,25 @@ class ApiClient {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Upload an image from XFile (works on web and mobile).
+  Future<Map<String, dynamic>> uploadImage(XFile image) async {
+    final bytes = await image.readAsBytes();
+    final filename = image.name.isNotEmpty ? image.name : image.path.split('/').last;
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: filename,
+        contentType: DioMediaType('image', 'jpeg'),
+      ),
+    });
+    final response = await _dio.post(
+      '/storage/upload',
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'),
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
   // ── Reports ─────────────────────────────────────────────────────────────────
 
   Future<List<int>> downloadReport({int? month, int? year}) async {
@@ -252,5 +272,58 @@ class ApiClient {
       options: Options(responseType: ResponseType.bytes),
     );
     return response.data!;
+  }
+
+  // ── Staff ────────────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getRegistrationRequests() async {
+    final response = await _dio.get('/staff/registration-requests');
+    return response.data as List<dynamic>;
+  }
+
+  Future<void> approveUser(int userId) async {
+    await _dio.post('/staff/users/$userId/approve');
+  }
+
+  Future<void> rejectUser(int userId) async {
+    await _dio.post('/staff/users/$userId/reject');
+  }
+
+  Future<void> deleteUser(int userId) async {
+    await _dio.delete('/staff/users/$userId');
+  }
+
+  Future<List<dynamic>> getAllUsers() async {
+    final response = await _dio.get('/staff/users');
+    return response.data as List<dynamic>;
+  }
+
+  // ── Jobs (company management) ────────────────────────────────────────────────
+
+  Future<List<dynamic>> getMyJobPostings() async {
+    final response = await _dio.get('/jobs/my-postings');
+    return response.data as List<dynamic>;
+  }
+
+  Future<List<dynamic>> getJobApplications(int jobId) async {
+    final response = await _dio.get('/jobs/$jobId/applications');
+    return response.data as List<dynamic>;
+  }
+
+  Future<void> updateJobPosting({
+    required int jobId,
+    required String title,
+    required String description,
+    String? location,
+  }) async {
+    await _dio.put('/jobs/$jobId', data: {
+      'title': title,
+      'description': description,
+      if (location != null && location.isNotEmpty) 'location': location,
+    });
+  }
+
+  Future<void> deleteJobPosting(int jobId) async {
+    await _dio.delete('/jobs/$jobId');
   }
 }

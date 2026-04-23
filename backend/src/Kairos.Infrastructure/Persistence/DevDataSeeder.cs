@@ -72,6 +72,7 @@ public static class DevDataSeeder
                 Role         = seed.Role,
                 Institution  = seed.Institution,
                 Bio          = seed.Bio,
+                Status       = "approved",
             };
             db.Users.Add(user);
             await db.SaveChangesAsync();

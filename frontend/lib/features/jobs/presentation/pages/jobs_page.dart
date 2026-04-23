@@ -7,6 +7,7 @@ import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/utils/file_downloader.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../data/models/job_model.dart';
+import 'company_jobs_page.dart';
 
 class JobsPage extends StatefulWidget {
   const JobsPage({super.key, required this.role});
@@ -153,10 +154,20 @@ class _JobsPageState extends State<JobsPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => _showCreateOfferDialog(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KairosPalette.accent,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const CompanyJobsPage()),
                       ),
+                      style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
+                      icon: const Icon(Icons.manage_search_rounded),
+                      label: const Text('Mis ofertas y postulantes'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showCreateOfferDialog(context),
+                      style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
                       icon: const Icon(Icons.add_rounded),
                       label: const Text('Publicar oferta'),
                     ),
@@ -171,29 +182,30 @@ class _JobsPageState extends State<JobsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Oportunidades Laborales',
-                        style: TextStyle(
-                          fontSize: 34,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                      Text('Oportunidades Laborales',
+                          style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
                       SizedBox(height: 4),
-                      Text(
-                        'Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro',
-                      ),
+                      Text('Practicas y trabajos del Liceo Tecnico Cardenal Jose Maria Caro'),
                     ],
                   ),
                 ),
-                if (isCompany)
+                if (isCompany) ...[
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CompanyJobsPage()),
+                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.primary),
+                    icon: const Icon(Icons.manage_search_rounded),
+                    label: const Text('Mis ofertas'),
+                  ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => _showCreateOfferDialog(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KairosPalette.accent,
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Publicar oferta'),
                   ),
+                ],
               ],
             ),
           const SizedBox(height: 16),

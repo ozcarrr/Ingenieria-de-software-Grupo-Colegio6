@@ -1,26 +1,30 @@
 using System.Security.Claims;
+using Kairos.Application.Common.Interfaces;
 using Kairos.Application.Features.Jobs.Commands.ApplyToJob;
 using Kairos.Application.Features.Jobs.Commands.CreateJobPosting;
 using Kairos.Application.Features.Jobs.Queries.GetJobs;
+using Kairos.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kairos.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class JobsController(IMediator mediator) : ControllerBase
+public class JobsController(IMediator mediator, IApplicationDbContext db) : ControllerBase
 {
     private int GetUserId() => int.Parse(
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
         ?? throw new UnauthorizedAccessException());
 
-    /// <summary>List job postings. Optionally filter by search term or status.</summary>
+    private string GetRole() =>
+        User.FindFirstValue(ClaimTypes.Role) ?? "student";
+
     [HttpGet]
-    [ProducesResponseType(typeof(GetJobsResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetJobs(
         [FromQuery] string? search   = null,
         [FromQuery] string? status   = "Open",
@@ -32,32 +36,122 @@ public class JobsController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Create a new job posting (company only).</summary>
     [HttpPost]
-    [ProducesResponseType(typeof(int), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CreateJobPosting(
         [FromBody] CreateJobRequest request,
         CancellationToken ct)
     {
-        var role = User.FindFirstValue(ClaimTypes.Role) ?? "student";
-        if (role != "company")
-            return Forbid();
+        if (GetRole() != "company") return Forbid();
 
         var id = await mediator.Send(new CreateJobPostingCommand(
-            GetUserId(),
-            request.Title,
-            request.Description,
-            request.Location,
-            request.ExpiresAt), ct);
+            GetUserId(), request.Title, request.Description,
+            request.Location, request.ExpiresAt), ct);
 
         return CreatedAtAction(nameof(GetJobs), new { id }, id);
     }
 
-    /// <summary>Apply to a job posting.</summary>
+    /// <summary>Company's own postings with application counts.</summary>
+    [HttpGet("my-postings")]
+    public async Task<IActionResult> GetMyPostings(CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var companyId = GetUserId();
+        var postings = await db.JobPostings
+            .Where(j => j.CompanyId == companyId)
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new
+            {
+                j.Id,
+                j.Title,
+                j.Description,
+                j.Location,
+                Status = j.Status.ToString(),
+                j.CreatedAt,
+                j.ExpiresAt,
+                ApplicationCount = j.Applications.Count,
+            })
+            .ToListAsync(ct);
+
+        return Ok(postings);
+    }
+
+    /// <summary>List applicants for one of the company's job postings.</summary>
+    [HttpGet("{jobId:int}/applications")]
+    public async Task<IActionResult> GetApplications(int jobId, CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var companyId = GetUserId();
+        var posting = await db.JobPostings
+            .Where(j => j.Id == jobId && j.CompanyId == companyId)
+            .FirstOrDefaultAsync(ct);
+
+        if (posting is null) return NotFound();
+
+        var applications = await db.JobApplications
+            .Where(a => a.JobId == jobId)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => new
+            {
+                a.Id,
+                a.CreatedAt,
+                a.CvUrl,
+                Status = a.Status.ToString(),
+                Applicant = new
+                {
+                    a.Applicant.Id,
+                    a.Applicant.FullName,
+                    a.Applicant.Email,
+                    a.Applicant.Institution,
+                    a.Applicant.ProfilePictureUrl,
+                },
+            })
+            .ToListAsync(ct);
+
+        return Ok(applications);
+    }
+
+    /// <summary>Update a job posting (company owner only).</summary>
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateJobPosting(
+        int id,
+        [FromBody] CreateJobRequest request,
+        CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var posting = await db.JobPostings
+            .FirstOrDefaultAsync(j => j.Id == id && j.CompanyId == GetUserId(), ct);
+
+        if (posting is null) return NotFound();
+
+        posting.Title       = request.Title;
+        posting.Description = request.Description;
+        posting.Location    = request.Location;
+        if (request.ExpiresAt.HasValue) posting.ExpiresAt = request.ExpiresAt;
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Delete a job posting (company owner only).</summary>
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteJobPosting(int id, CancellationToken ct)
+    {
+        if (GetRole() != "company") return Forbid();
+
+        var posting = await db.JobPostings
+            .FirstOrDefaultAsync(j => j.Id == id && j.CompanyId == GetUserId(), ct);
+
+        if (posting is null) return NotFound();
+
+        db.JobPostings.Remove(posting);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     [HttpPost("{jobId:int}/apply")]
-    [ProducesResponseType(typeof(int), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ApplyToJob(
         int jobId,
         [FromBody] ApplyRequest request,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
@@ -9,7 +10,9 @@ import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
 import '../../../../core/widgets/post_card.dart';
 import '../../../home/data/models/post_model.dart';
+import '../../../staff/presentation/pages/registration_requests_page.dart';
 import '../../../staff/presentation/pages/staff_management_page.dart';
+import '../../../staff/presentation/pages/user_management_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.currentUser, required this.role});
@@ -26,10 +29,14 @@ class _HomePageState extends State<HomePage> {
   final FocusNode _postFocusNode = FocusNode();
 
   final _api = ApiClient();
+  final _picker = ImagePicker();
   List<PostModel> _posts = [];
   bool _feedLoading = true;
   String? _feedError;
   bool _publishing = false;
+  XFile? _selectedImage;
+  bool _uploadingImage = false;
+  String? _uploadedImageUrl;
 
   SocialHubService? hub;
 
@@ -67,15 +74,42 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _pickImage() async {
+    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (image == null) return;
+    setState(() {
+      _selectedImage = image;
+      _uploadedImageUrl = null;
+      _uploadingImage = true;
+    });
+    try {
+      final result = await _api.uploadImage(image);
+      if (mounted) setState(() => _uploadedImageUrl = result['cdnUrl'] as String?);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _selectedImage = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo subir la imagen.'), backgroundColor: Colors.redAccent),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
+  }
+
   Future<void> _publishPost() async {
     final text = _postController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty && _uploadedImageUrl == null) return;
 
     setState(() => _publishing = true);
     try {
-      await _api.createPost(content: text, postType: 'general');
+      await _api.createPost(content: text, postType: 'general', imageUrl: _uploadedImageUrl);
       _postController.clear();
       _postFocusNode.unfocus();
+      setState(() {
+        _selectedImage = null;
+        _uploadedImageUrl = null;
+      });
       await _loadFeed();
     } catch (_) {
       if (mounted) {
@@ -234,18 +268,45 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const StaffManagementPage(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const RegistrationRequestsPage()),
+                        ),
+                        icon: const Icon(Icons.person_add_rounded, size: 18),
+                        label: const Text('Solicitudes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KairosPalette.accent,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.upload_file_rounded, size: 18),
-                    label: const Text('Importar CSV'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KairosPalette.primary,
-                      foregroundColor: Colors.white,
-                    ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const UserManagementPage()),
+                        ),
+                        icon: const Icon(Icons.manage_accounts_rounded, size: 18),
+                        label: const Text('Usuarios'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KairosPalette.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const StaffManagementPage()),
+                        ),
+                        icon: const Icon(Icons.upload_file_rounded, size: 18),
+                        label: const Text('Importar CSV'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KairosPalette.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -351,6 +412,51 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+              if (_selectedImage != null) ...[
+                const SizedBox(height: 8),
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: _uploadingImage
+                          ? Container(
+                              height: 120,
+                              color: KairosPalette.muted,
+                              child: const Center(child: CircularProgressIndicator()),
+                            )
+                          : Image.network(
+                              _uploadedImageUrl ?? '',
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                height: 120,
+                                color: KairosPalette.muted,
+                                child: const Icon(Icons.image_rounded),
+                              ),
+                            ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _selectedImage = null;
+                          _uploadedImageUrl = null;
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               _buildComposerActions(
                 canCreateEvent: canCreateEvent,
@@ -548,7 +654,7 @@ class _HomePageState extends State<HomePage> {
       width: 116,
       height: 40,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: _uploadingImage ? null : _pickImage,
         icon: const Icon(Icons.image_rounded, size: 16),
         label: const Text('Media'),
         style: OutlinedButton.styleFrom(

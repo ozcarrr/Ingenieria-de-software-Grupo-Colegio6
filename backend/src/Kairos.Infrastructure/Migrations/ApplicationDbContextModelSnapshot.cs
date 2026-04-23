@@ -287,6 +287,12 @@ namespace Kairos.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasDefaultValue("approved")
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(50)

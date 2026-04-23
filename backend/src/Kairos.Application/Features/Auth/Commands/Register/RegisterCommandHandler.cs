@@ -23,7 +23,8 @@ public class RegisterCommandHandler(IApplicationDbContext db)
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             FullName = request.FullName,
             Institution = request.Institution,
-            Role = request.Role ?? "student"
+            Role = request.Role ?? "student",
+            Status = "pending"
         };
 
         db.Users.Add(user);

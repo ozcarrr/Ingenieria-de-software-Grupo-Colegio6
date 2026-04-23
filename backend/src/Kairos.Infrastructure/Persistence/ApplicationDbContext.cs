@@ -49,6 +49,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
             e.Property(u => u.ProfilePictureUrl).HasMaxLength(500);
             e.Property(u => u.Institution).HasMaxLength(200);
             e.Property(u => u.Role).HasMaxLength(20);
+            e.Property(u => u.Status).HasMaxLength(20).HasDefaultValue("approved").IsRequired();
         });
 
         // ════════════════════════════════════════════════════

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/api/api_client.dart';
 import 'core/models/user_profile.dart';
 import 'core/state/user_role_controller.dart';
 import 'core/theme/app_theme.dart';
@@ -35,7 +36,15 @@ class _KairosAppState extends State<KairosApp> {
 
   void _onLoginSuccess(UserProfile user) {
     _roleController.setRole(user.role);
-    setState(() => _currentUser = user);
+    setState(() {
+      _currentUser = user;
+      _selectedIndex = 0;
+    });
+  }
+
+  Future<void> _onLogout() async {
+    await ApiClient().clearToken();
+    setState(() => _currentUser = null);
   }
 
   @override
@@ -55,6 +64,7 @@ class _KairosAppState extends State<KairosApp> {
                       setState(() => _selectedIndex = index),
                   currentUser: _currentUser!,
                   roleController: _roleController,
+                  onLogout: _onLogout,
                   child: _buildScreen(),
                 );
               },
