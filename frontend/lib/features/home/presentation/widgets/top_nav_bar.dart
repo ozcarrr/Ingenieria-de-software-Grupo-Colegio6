@@ -15,7 +15,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
     (Icons.home_rounded, Icons.home_outlined, 'Inicio'),
     (Icons.work_rounded, Icons.work_outline, 'Trabajos'),
     (Icons.people_rounded, Icons.people_outline, 'Red'),
-    (Icons.chat_bubble_rounded, Icons.chat_bubble_outline, 'Mensajes'),
+    (Icons.chat_bubble_rounded, Icons.chat_bubble_outline, 'Chats'),
     (Icons.person_rounded, Icons.person_outline, 'Perfil'),
   ];
 
@@ -43,7 +43,11 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
                   color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.hub_rounded, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.hub_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 8),
               const Text(
@@ -106,12 +110,20 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
               color: AppColors.background,
               border: Border.all(color: AppColors.divider),
             ),
-            child: const Icon(Icons.person, color: AppColors.textSecondary, size: 20),
+            child: const Icon(
+              Icons.person,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           // Logout
           IconButton(
-            icon: const Icon(Icons.logout, color: AppColors.textSecondary, size: 20),
+            icon: const Icon(
+              Icons.logout,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
             onPressed: () {},
             tooltip: 'Cerrar sesión',
           ),

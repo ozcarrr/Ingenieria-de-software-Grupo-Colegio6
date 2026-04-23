@@ -1,13 +1,18 @@
+using System.Net;
+using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using Kairos.API.Hubs;
 using Kairos.API.Middleware;
+using Kairos.API.RateLimit;
 using Kairos.Application.Common.Behaviors;
 using Kairos.Application.Features.Auth.Commands.Login;
 using Kairos.Infrastructure;
 using Kairos.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -101,6 +106,36 @@ builder.Services.AddCors(opts =>
               .AllowAnyMethod()
               .AllowCredentials()));
 
+// ── Rate Limiting ─────────────────────────────────────────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    // Login: 5 attempts per 15 minutes, keyed by client IP (localhost is exempt)
+    options.AddPolicy("login", context =>
+    {
+        var ip = context.Connection.RemoteIpAddress;
+        if (ip != null && IPAddress.IsLoopback(ip))
+            return RateLimitPartition.GetNoLimiter(ip.ToString());
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ip?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            });
+    });
+
+    // CV generation: 5 per 15 min + 20 s minimum gap, keyed by authenticated user ID
+    options.AddPolicy<string>("curriculum", context =>
+    {
+        var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anon";
+        return RateLimitPartition.Get(userId, _ => new CurriculumRateLimiter());
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 var app = builder.Build();
 
 // ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
@@ -122,6 +157,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

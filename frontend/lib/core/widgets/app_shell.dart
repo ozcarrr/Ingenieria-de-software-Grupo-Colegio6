@@ -28,7 +28,7 @@ class AppShell extends StatelessWidget {
     _NavItem(label: 'Inicio', icon: Icons.home_rounded),
     _NavItem(label: 'Trabajos', icon: Icons.work_rounded),
     _NavItem(label: 'Red', icon: Icons.group_rounded),
-    _NavItem(label: 'Mensajes', icon: Icons.chat_bubble_rounded),
+    _NavItem(label: 'Chats', icon: Icons.chat_bubble_rounded),
     _NavItem(label: 'Perfil', icon: Icons.person_rounded),
   ];
 

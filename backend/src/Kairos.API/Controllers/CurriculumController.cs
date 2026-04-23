@@ -3,6 +3,7 @@ using Kairos.Application.Features.Curriculum.Queries.GenerateCurriculum;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Kairos.API.Controllers;
 
@@ -16,8 +17,10 @@ public class CurriculumController(IMediator mediator) : ControllerBase
     /// built from their entire activity history.
     /// </summary>
     [HttpGet("me")]
+    [EnableRateLimiting("curriculum")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetMyCurriculum(CancellationToken ct)
     {
         var userId = int.Parse(
