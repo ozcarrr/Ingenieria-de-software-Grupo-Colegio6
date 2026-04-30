@@ -30,13 +30,23 @@ public static class DevDataSeeder
             },
             new
             {
-                Username    = "kairos_user2",
-                Email       = "kairos_user2@kairos.cl",
+                Username    = "kairos_staff1",
+                Email       = "staff1@kairos.cl",
                 Password    = "Kairos2026!",
                 FullName    = "Carlos Méndez Torres",
                 Role        = "staff",
                 Institution = "Liceo Técnico Cardenal José María Caro",
                 Bio         = "Jefe de Especialidad — Mecatrónica y Automatización Industrial.",
+            },
+            new
+            {
+                Username    = "kairos_staff2",
+                Email       = "staff2@kairos.cl",
+                Password    = "Kairos2026!",
+                FullName    = "María Ignacia Fuentes Vera",
+                Role        = "staff",
+                Institution = "Liceo Técnico Cardenal José María Caro",
+                Bio         = "Orientadora vocacional y encargada de vinculación con empresas.",
             },
             new
             {
@@ -48,18 +58,30 @@ public static class DevDataSeeder
                 Institution = "Santiago, Chile",
                 Bio         = "Empresa líder en soluciones de automatización para la industria nacional.",
             },
+            new
+            {
+                Username    = "empresa_kairos2",
+                Email       = "empresa2@kairos.cl",
+                Password    = "Kairos2026!",
+                FullName    = "TechSolutions Chile SpA",
+                Role        = "company",
+                Institution = "Viña del Mar, Chile",
+                Bio         = "Desarrollamos software y sistemas embebidos para la industria minera y energética.",
+            },
         };
 
-        int? companyId = null;
-        int? studentId = null;
+        int? companyId  = null;
+        int? companyId2 = null;
+        int? studentId  = null;
 
         foreach (var seed in testUsers)
         {
             var existing = await db.Users.FirstOrDefaultAsync(u => u.Username == seed.Username);
             if (existing != null)
             {
-                if (seed.Role == "company") companyId = existing.Id;
-                if (seed.Role == "student") studentId = existing.Id;
+                if (seed.Username == "empresa_kairos")  companyId  = existing.Id;
+                if (seed.Username == "empresa_kairos2") companyId2 = existing.Id;
+                if (seed.Role == "student")             studentId  = existing.Id;
                 continue;
             }
 
@@ -77,8 +99,9 @@ public static class DevDataSeeder
             db.Users.Add(user);
             await db.SaveChangesAsync();
 
-            if (seed.Role == "company") companyId = user.Id;
-            if (seed.Role == "student") studentId = user.Id;
+            if (seed.Username == "empresa_kairos")  companyId  = user.Id;
+            if (seed.Username == "empresa_kairos2") companyId2 = user.Id;
+            if (seed.Role == "student")             studentId  = user.Id;
         }
 
         // ── Actividades del estudiante (alimentan el CV) ────────────────────────
@@ -150,7 +173,7 @@ public static class DevDataSeeder
             }
         }
 
-        // ── Oferta laboral de demo (empresa → visible para el estudiante) ───────
+        // ── Ofertas laborales de demo ──────────────────────────────────────────
         if (companyId.HasValue)
         {
             var hasJobs = await db.JobPostings.AnyAsync(j => j.CompanyId == companyId.Value);
@@ -186,15 +209,50 @@ public static class DevDataSeeder
             }
         }
 
+        if (companyId2.HasValue)
+        {
+            var hasJobs2 = await db.JobPostings.AnyAsync(j => j.CompanyId == companyId2.Value);
+            if (!hasJobs2)
+            {
+                db.JobPostings.AddRange(
+                    new JobPosting
+                    {
+                        CompanyId   = companyId2.Value,
+                        Title       = "Desarrollador de Sistemas Embebidos",
+                        Description = "Buscamos técnico con conocimientos en C/C++ para microcontroladores y comunicación industrial (Modbus, CAN). " +
+                                      "Proyecto en sector minero, trabajo híbrido con visitas a terreno en faena.",
+                        Location    = "Antofagasta / Remoto",
+                        Status      = JobStatus.Open,
+                        CreatedAt   = DateTime.UtcNow.AddDays(-5),
+                        ExpiresAt   = DateTime.UtcNow.AddDays(25),
+                    },
+                    new JobPosting
+                    {
+                        CompanyId   = companyId2.Value,
+                        Title       = "Práctica — Soporte IT e Infraestructura",
+                        Description = "Práctica de 4 meses para estudiantes de Informática o Telecomunicaciones. " +
+                                      "Apoyarás al equipo de infraestructura en mantención de redes, servidores Linux y monitoreo de sistemas. " +
+                                      "Modalidad presencial en Viña del Mar.",
+                        Location    = "Viña del Mar",
+                        Status      = JobStatus.Open,
+                        CreatedAt   = DateTime.UtcNow.AddDays(-1),
+                        ExpiresAt   = DateTime.UtcNow.AddDays(29),
+                    }
+                );
+                await db.SaveChangesAsync();
+            }
+        }
+
         // ── Posts de demo en el feed ───────────────────────────────────────────
         var hasSeededPosts = await db.Posts.AnyAsync();
         if (!hasSeededPosts && studentId.HasValue && companyId.HasValue)
         {
-            db.Posts.AddRange(
+            var posts = new List<Post>
+            {
                 new Post
                 {
                     AuthorId  = studentId.Value,
-                    Content   = "¡Terminé mi proyecto de brazo robótico controlado por Arduino! 🤖 " +
+                    Content   = "¡Terminé mi proyecto de brazo robótico controlado por Arduino! " +
                                 "Fue un desafío increíble aprender programación en C++ y diseñar los servomotores. " +
                                 "Gracias a todos los que me apoyaron en Kairos.",
                     Type      = PostType.General,
@@ -203,13 +261,28 @@ public static class DevDataSeeder
                 new Post
                 {
                     AuthorId  = companyId.Value,
-                    Content   = "¡Estamos buscando talento técnico! 🏭 " +
+                    Content   = "¡Estamos buscando talento técnico! " +
                                 "Abrimos dos posiciones para egresados y practicantes de Mecatrónica. " +
                                 "Si te apasiona la automatización industrial, postula ahora en Kairos.",
                     Type      = PostType.General,
                     CreatedAt = DateTime.UtcNow.AddHours(-3),
-                }
-            );
+                },
+            };
+
+            if (companyId2.HasValue)
+            {
+                posts.Add(new Post
+                {
+                    AuthorId  = companyId2.Value,
+                    Content   = "En TechSolutions Chile estamos creciendo y buscamos nuevos talentos del mundo técnico. " +
+                                "Tenemos posiciones abiertas en sistemas embebidos y soporte IT. " +
+                                "¡Revisa nuestras ofertas en Kairos y postula hoy!",
+                    Type      = PostType.General,
+                    CreatedAt = DateTime.UtcNow.AddHours(-1),
+                });
+            }
+
+            db.Posts.AddRange(posts);
             await db.SaveChangesAsync();
         }
     }
