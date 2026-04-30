@@ -19,6 +19,7 @@ class JobModel {
     required this.logoUrl,
     required this.postedDate,
     this.salary,
+    this.imageUrl,
     this.specializations = const [],
   });
 
@@ -32,6 +33,7 @@ class JobModel {
   final String logoUrl;
   final String postedDate;
   final String? salary;
+  final String? imageUrl;
   final List<String> specializations;
 
   factory JobModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class JobModel {
       logoUrl: json['companyAvatarUrl'] as String? ?? '',
       postedDate: postedDate,
       salary: null,
+      imageUrl: json['imageUrl'] as String?,
       specializations: const [],
     );
   }

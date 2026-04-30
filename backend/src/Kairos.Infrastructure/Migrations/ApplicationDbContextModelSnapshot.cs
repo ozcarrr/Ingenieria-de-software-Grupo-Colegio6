@@ -127,6 +127,10 @@ namespace Kairos.Infrastructure.Migrations
                     b.Property<DateTime?>("ExpiresAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<string>("Location")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");

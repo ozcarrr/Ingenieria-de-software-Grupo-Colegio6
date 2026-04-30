@@ -45,7 +45,7 @@ public class JobsController(IMediator mediator, IApplicationDbContext db) : Cont
 
         var id = await mediator.Send(new CreateJobPostingCommand(
             GetUserId(), request.Title, request.Description,
-            request.Location, request.ExpiresAt), ct);
+            request.Location, request.ExpiresAt, request.ImageUrl), ct);
 
         return CreatedAtAction(nameof(GetJobs), new { id }, id);
     }
@@ -66,6 +66,7 @@ public class JobsController(IMediator mediator, IApplicationDbContext db) : Cont
                 j.Title,
                 j.Description,
                 j.Location,
+                j.ImageUrl,
                 Status = j.Status.ToString(),
                 j.CreatedAt,
                 j.ExpiresAt,
@@ -129,6 +130,7 @@ public class JobsController(IMediator mediator, IApplicationDbContext db) : Cont
         posting.Title       = request.Title;
         posting.Description = request.Description;
         posting.Location    = request.Location;
+        if (request.ImageUrl  != null) posting.ImageUrl  = request.ImageUrl;
         if (request.ExpiresAt.HasValue) posting.ExpiresAt = request.ExpiresAt;
 
         await db.SaveChangesAsync(ct);
@@ -174,6 +176,7 @@ public record CreateJobRequest(
     string    Title,
     string    Description,
     string?   Location  = null,
+    string?   ImageUrl  = null,
     DateTime? ExpiresAt = null);
 
 public record ApplyRequest(string? CvUrl = null);

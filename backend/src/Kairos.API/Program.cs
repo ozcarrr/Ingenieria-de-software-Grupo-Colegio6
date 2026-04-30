@@ -19,7 +19,7 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Infrastructure (MySQL, Blob, JWT, PDF) ────────────────────────────────────
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 // ── Application (MediatR + FluentValidation) ──────────────────────────────────
 builder.Services.AddMediatR(cfg =>
@@ -144,6 +144,7 @@ if (app.Environment.IsDevelopment())
 
 // ── Middleware pipeline ────────────────────────────────────────────────────────
 app.UseCors();
+app.UseStaticFiles(); // serves wwwroot/uploads/* in dev
 
 if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/theme/kairos_palette.dart';
@@ -73,11 +74,14 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
   }
 
   void _showEditDialog(Map<String, dynamic> posting) {
-    final titleCtrl = TextEditingController(text: posting['title'] as String? ?? '');
-    final descCtrl = TextEditingController(text: posting['description'] as String? ?? '');
+    final titleCtrl    = TextEditingController(text: posting['title'] as String? ?? '');
+    final descCtrl     = TextEditingController(text: posting['description'] as String? ?? '');
     final locationCtrl = TextEditingController(text: posting['location'] as String? ?? '');
-    final formKey = GlobalKey<FormState>();
-    bool saving = false;
+    final formKey      = GlobalKey<FormState>();
+    bool  saving       = false;
+    bool  uploadingImg = false;
+    String? imageUrl   = posting['imageUrl'] as String?;
+    final picker       = ImagePicker();
 
     showDialog<void>(
       context: context,
@@ -88,27 +92,71 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
             width: 480,
             child: Form(
               key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Cargo / título *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: descCtrl,
-                    decoration: const InputDecoration(labelText: 'Descripción *'),
-                    maxLines: 3,
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: locationCtrl,
-                    decoration: const InputDecoration(labelText: 'Ubicación'),
-                  ),
-                ],
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Cargo / título *'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Descripción *'),
+                      maxLines: 3,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: locationCtrl,
+                      decoration: const InputDecoration(labelText: 'Ubicación'),
+                    ),
+                    const SizedBox(height: 14),
+                    if (imageUrl != null && imageUrl!.isNotEmpty)
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(imageUrl!, height: 110, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            top: 4, right: 4,
+                            child: GestureDetector(
+                              onTap: () => setInner(() => imageUrl = null),
+                              child: Container(
+                                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                padding: const EdgeInsets.all(4),
+                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: uploadingImg ? null : () async {
+                          final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (img == null) return;
+                          setInner(() => uploadingImg = true);
+                          try {
+                            final result = await _api.uploadImage(img);
+                            setInner(() => imageUrl = result['cdnUrl'] as String?);
+                          } catch (_) {
+                            if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('No se pudo subir la imagen.')));
+                          } finally {
+                            setInner(() => uploadingImg = false);
+                          }
+                        },
+                        icon: uploadingImg
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                        label: Text(uploadingImg ? 'Subiendo...' : 'Agregar imagen (opcional)'),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -122,10 +170,11 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
                       setInner(() => saving = true);
                       try {
                         await _api.updateJobPosting(
-                          jobId: posting['id'] as int,
-                          title: titleCtrl.text.trim(),
+                          jobId:       posting['id'] as int,
+                          title:       titleCtrl.text.trim(),
                           description: descCtrl.text.trim(),
-                          location: locationCtrl.text.trim(),
+                          location:    locationCtrl.text.trim(),
+                          imageUrl:    imageUrl,
                         );
                         if (ctx.mounted) Navigator.pop(ctx);
                         await _load();
@@ -177,10 +226,22 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
                   itemBuilder: (context, index) {
                     final p = _postings[index];
                     final appCount = p['applicationCount'] as int? ?? 0;
+                    final jobImageUrl = (p['imageUrl'] as String? ?? '').trim();
                     return KCard(
+                      padding: EdgeInsets.zero,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (jobImageUrl.isNotEmpty)
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                              child: Image.network(jobImageUrl, height: 120, width: double.infinity, fit: BoxFit.cover),
+                            ),
+                          Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                           Row(
                             children: [
                               Expanded(
@@ -234,6 +295,9 @@ class _CompanyJobsPageState extends State<CompanyJobsPage> {
                                   label: const Text('Ver postulantes'),
                                 ),
                             ],
+                          ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

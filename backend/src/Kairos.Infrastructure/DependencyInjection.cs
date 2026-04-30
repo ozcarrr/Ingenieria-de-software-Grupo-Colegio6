@@ -6,9 +6,11 @@
 using Kairos.Application.Common.Interfaces;
 using Kairos.Infrastructure.Data;
 using Kairos.Infrastructure.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Kairos.Infrastructure;
 
@@ -16,7 +18,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment env)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("No se encontró 'DefaultConnection' en appsettings.json");
@@ -45,9 +48,12 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Section));
         services.AddScoped<IJwtService, JwtService>();
 
-        // Azure Blob Storage
+        // Storage: local filesystem in dev, Azure Blob in production
         services.Configure<AzureBlobOptions>(configuration.GetSection(AzureBlobOptions.Section));
-        services.AddScoped<IStorageService, StorageService>();
+        if (env.IsDevelopment())
+            services.AddScoped<IStorageService, LocalStorageService>();
+        else
+            services.AddScoped<IStorageService, StorageService>();
 
         // PDF generation
         services.AddScoped<ICurriculumGenerator, CurriculumGenerator>();

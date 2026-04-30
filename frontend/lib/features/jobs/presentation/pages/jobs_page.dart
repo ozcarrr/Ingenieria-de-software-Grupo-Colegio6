@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/api/api_client.dart';
 import '../../../../core/data/mock_data.dart';
@@ -25,6 +26,7 @@ class _JobsPageState extends State<JobsPage> {
   String? _selectedSpecialization;
 
   final _api = ApiClient();
+  final _picker = ImagePicker();
   List<JobModel> _apiJobs = [];
   bool _jobsLoading = true;
   bool _generatingCv = false;
@@ -484,18 +486,20 @@ class _JobsPageState extends State<JobsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (job.imageUrl != null && job.imageUrl!.isNotEmpty)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Image.network(
+                  job.imageUrl!,
+                  width: double.infinity,
+                  height: 140,
+                  fit: BoxFit.cover,
+                ),
+              ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    job.logoUrl,
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+                _CompanyLogo(logoUrl: job.logoUrl, company: job.company, size: 56),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -599,19 +603,27 @@ class _JobsPageState extends State<JobsPage> {
     }
 
     return KCard(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              job.logoUrl,
-              width: 58,
-              height: 58,
-              fit: BoxFit.cover,
+          if (job.imageUrl != null && job.imageUrl!.isNotEmpty)
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: Image.network(
+                job.imageUrl!,
+                width: double.infinity,
+                height: 130,
+                fit: BoxFit.cover,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _CompanyLogo(logoUrl: job.logoUrl, company: job.company, size: 58),
+                const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,6 +713,9 @@ class _JobsPageState extends State<JobsPage> {
           ),
         ],
       ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -784,57 +799,100 @@ class _JobsPageState extends State<JobsPage> {
   }
 
   void _showCreateOfferDialog(BuildContext context) {
-    final titleCtrl       = TextEditingController();
-    final descCtrl        = TextEditingController();
-    final locationCtrl    = TextEditingController();
-    final formKey         = GlobalKey<FormState>();
-    bool  submitting      = false;
+    final titleCtrl    = TextEditingController();
+    final descCtrl     = TextEditingController();
+    final locationCtrl = TextEditingController();
+    final formKey      = GlobalKey<FormState>();
+    bool  submitting   = false;
+    bool  uploadingImg = false;
+    String? uploadedImageUrl;
+    XFile? pickedImage;
 
     showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setInner) => AlertDialog(
-          title: const Text(
-            'Publicar oferta laboral',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
+          title: const Text('Publicar oferta laboral', style: TextStyle(fontWeight: FontWeight.w800)),
           content: SizedBox(
             width: 480,
             child: Form(
               key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Cargo / título *',
-                      hintText: 'Ej: Técnico en Automatización',
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Cargo / título *',
+                        hintText: 'Ej: Técnico en Automatización',
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: descCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción *',
-                      hintText: 'Requisitos, beneficios, jornada...',
-                      alignLabelWithHint: true,
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Descripción *',
+                        hintText: 'Requisitos, beneficios, jornada...',
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 4,
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
                     ),
-                    maxLines: 4,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Campo requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: locationCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Ubicación',
-                      hintText: 'Ej: Santiago, Chile',
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: locationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Ubicación',
+                        hintText: 'Ej: Santiago, Chile',
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 14),
+                    // Image picker
+                    if (uploadedImageUrl != null)
+                      Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(uploadedImageUrl!, height: 120, width: double.infinity, fit: BoxFit.cover),
+                          ),
+                          Positioned(
+                            top: 4, right: 4,
+                            child: GestureDetector(
+                              onTap: () => setInner(() { uploadedImageUrl = null; pickedImage = null; }),
+                              child: Container(
+                                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                padding: const EdgeInsets.all(4),
+                                child: const Icon(Icons.close, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: uploadingImg ? null : () async {
+                          final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                          if (img == null) return;
+                          setInner(() { uploadingImg = true; pickedImage = img; });
+                          try {
+                            final result = await _api.uploadImage(img);
+                            setInner(() => uploadedImageUrl = result['cdnUrl'] as String?);
+                          } catch (_) {
+                            if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('No se pudo subir la imagen.')));
+                          } finally {
+                            setInner(() => uploadingImg = false);
+                          }
+                        },
+                        icon: uploadingImg
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.add_photo_alternate_rounded, size: 18),
+                        label: Text(uploadingImg ? 'Subiendo...' : 'Agregar imagen (opcional)'),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -844,10 +902,7 @@ class _JobsPageState extends State<JobsPage> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KairosPalette.accent,
-                foregroundColor: Colors.white,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: KairosPalette.accent, foregroundColor: Colors.white),
               onPressed: submitting
                   ? null
                   : () async {
@@ -857,42 +912,71 @@ class _JobsPageState extends State<JobsPage> {
                         await _api.createJobPosting(
                           title:       titleCtrl.text.trim(),
                           description: descCtrl.text.trim(),
-                          location:    locationCtrl.text.trim().isNotEmpty
-                              ? locationCtrl.text.trim()
-                              : null,
+                          location:    locationCtrl.text.trim().isNotEmpty ? locationCtrl.text.trim() : null,
+                          imageUrl:    uploadedImageUrl,
                         );
                         if (ctx.mounted) Navigator.of(ctx).pop();
                         await _loadJobs();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Oferta publicada exitosamente.'),
-                              backgroundColor: Colors.green,
-                            ),
+                            const SnackBar(content: Text('Oferta publicada exitosamente.'), backgroundColor: Colors.green),
                           );
                         }
                       } catch (_) {
                         setInner(() => submitting = false);
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No se pudo publicar la oferta.'),
-                              backgroundColor: Colors.redAccent,
-                            ),
+                            const SnackBar(content: Text('No se pudo publicar la oferta.'), backgroundColor: Colors.redAccent),
                           );
                         }
                       }
                     },
               child: submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
-                    )
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text('Publicar'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompanyLogo extends StatelessWidget {
+  const _CompanyLogo({required this.logoUrl, required this.company, required this.size});
+  final String logoUrl;
+  final String company;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (logoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.2),
+        child: Image.network(
+          logoUrl,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallback(),
+        ),
+      );
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: KairosPalette.muted,
+        borderRadius: BorderRadius.circular(size * 0.2),
+      ),
+      child: Center(
+        child: Text(
+          company.isNotEmpty ? company[0].toUpperCase() : '?',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: size * 0.45),
         ),
       ),
     );

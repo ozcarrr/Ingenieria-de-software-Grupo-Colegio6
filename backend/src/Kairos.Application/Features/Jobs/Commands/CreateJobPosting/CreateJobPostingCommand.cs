@@ -7,4 +7,5 @@ public record CreateJobPostingCommand(
     string   Title,
     string   Description,
     string?  Location,
-    DateTime? ExpiresAt) : IRequest<int>;
+    DateTime? ExpiresAt,
+    string?  ImageUrl = null) : IRequest<int>;

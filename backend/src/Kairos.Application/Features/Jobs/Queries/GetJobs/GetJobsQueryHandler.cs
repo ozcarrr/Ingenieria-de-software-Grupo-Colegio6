@@ -42,6 +42,7 @@ public class GetJobsQueryHandler(IApplicationDbContext db)
                 j.Title,
                 j.Description,
                 j.Location,
+                j.ImageUrl,
                 j.Status.ToString(),
                 j.CreatedAt,
                 j.ExpiresAt,

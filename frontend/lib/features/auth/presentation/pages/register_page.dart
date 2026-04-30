@@ -87,6 +87,13 @@ class _RegisterPageState extends State<RegisterPage> {
       final roleStr = loginResponse['role'] as String? ?? _selectedRole;
 
       await client.saveToken(token);
+      await client.saveProfile({
+        'id': 'me',
+        'fullName': fullName,
+        'role': roleStr,
+        'title': _titleForRole(_selectedRole),
+        'profilePictureUrl': avatarUrl,
+      });
 
       final user = UserProfile(
         id: 'me',

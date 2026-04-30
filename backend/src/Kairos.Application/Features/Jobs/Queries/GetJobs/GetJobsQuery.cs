@@ -13,6 +13,7 @@ public record JobDto(
     string   Title,
     string   Description,
     string?  Location,
+    string?  ImageUrl,
     string   Status,
     DateTime CreatedAt,
     DateTime? ExpiresAt,

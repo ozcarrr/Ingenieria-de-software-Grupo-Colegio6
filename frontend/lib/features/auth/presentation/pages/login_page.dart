@@ -47,11 +47,21 @@ class _LoginPageState extends State<LoginPage> {
       await client.saveToken(token);
 
       final roleStr = response['role'] as String? ?? 'student';
+      final titleStr = _titleForRole(roleStr);
+      await client.saveProfile({
+        'id': 'me',
+        'fullName': fullName,
+        'role': roleStr,
+        'title': titleStr,
+        'profilePictureUrl': avatarUrl,
+        'institution': institution,
+      });
+
       final user = UserProfile(
         id: 'me',
         name: fullName,
         role: _mapRole(roleStr),
-        title: _titleForRole(roleStr),
+        title: titleStr,
         avatarUrl: avatarUrl,
         skills: const [],
         bio: '',

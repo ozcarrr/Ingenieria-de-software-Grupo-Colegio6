@@ -3,8 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ApiClient {
-  static const _baseUrl = 'http://localhost:5001/api';
-  static const _tokenKey = 'auth_token';
+  static const _baseUrl     = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:5000/api');
+  static const _tokenKey    = 'auth_token';
+  static const _profileKey  = 'auth_profile';
 
   late final Dio _dio;
   final _storage = const FlutterSecureStorage();
@@ -41,10 +42,40 @@ class ApiClient {
     } catch (_) {}
   }
 
+  Future<void> saveProfile(Map<String, String?> profile) async {
+    try {
+      final encoded = profile.entries
+          .where((e) => e.value != null)
+          .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value!)}')
+          .join('&');
+      await _storage.write(key: _profileKey, value: encoded)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {}
+  }
+
+  Future<Map<String, String>?> loadProfile() async {
+    try {
+      final raw = await _storage.read(key: _profileKey)
+          .timeout(const Duration(seconds: 3));
+      if (raw == null || raw.isEmpty) return null;
+      return Map.fromEntries(raw.split('&').map((kv) {
+        final parts = kv.split('=');
+        return MapEntry(
+          Uri.decodeComponent(parts[0]),
+          parts.length > 1 ? Uri.decodeComponent(parts.sublist(1).join('=')) : '',
+        );
+      }));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> clearToken() async {
     try {
-      await _storage.delete(key: _tokenKey)
-          .timeout(const Duration(seconds: 3));
+      await Future.wait([
+        _storage.delete(key: _tokenKey).timeout(const Duration(seconds: 3)),
+        _storage.delete(key: _profileKey).timeout(const Duration(seconds: 3)),
+      ]);
     } catch (_) {}
   }
 
@@ -154,12 +185,14 @@ class ApiClient {
     required String title,
     required String description,
     String? location,
+    String? imageUrl,
     DateTime? expiresAt,
   }) async {
     final response = await _dio.post('/jobs', data: {
       'title': title,
       'description': description,
       if (location != null) 'location': location,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (expiresAt != null) 'expiresAt': expiresAt.toIso8601String(),
     });
     return response.data as int;
@@ -234,11 +267,18 @@ class ApiClient {
   Future<Map<String, dynamic>> uploadImage(XFile image) async {
     final bytes = await image.readAsBytes();
     final filename = image.name.isNotEmpty ? image.name : image.path.split('/').last;
+    final ext = filename.split('.').last.toLowerCase();
+    final subtype = switch (ext) {
+      'png'  => 'png',
+      'webp' => 'webp',
+      'gif'  => 'gif',
+      _      => 'jpeg',
+    };
     final formData = FormData.fromMap({
       'file': MultipartFile.fromBytes(
         bytes,
         filename: filename,
-        contentType: DioMediaType('image', 'jpeg'),
+        contentType: DioMediaType('image', subtype),
       ),
     });
     final response = await _dio.post(
@@ -315,11 +355,13 @@ class ApiClient {
     required String title,
     required String description,
     String? location,
+    String? imageUrl,
   }) async {
     await _dio.put('/jobs/$jobId', data: {
       'title': title,
       'description': description,
       if (location != null && location.isNotEmpty) 'location': location,
+      if (imageUrl != null) 'imageUrl': imageUrl,
     });
   }
 

@@ -27,6 +27,45 @@ class _KairosAppState extends State<KairosApp> {
   UserProfile? _currentUser;
   final UserRoleController _roleController = UserRoleController();
   int _selectedIndex = 0;
+  bool _restoringSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tryRestoreSession();
+  }
+
+  Future<void> _tryRestoreSession() async {
+    final api = ApiClient();
+    final token = await api.getToken();
+    if (token != null) {
+      final profile = await api.loadProfile();
+      if (profile != null && mounted) {
+        final roleStr = profile['role'] ?? 'student';
+        final role = switch (roleStr) {
+          'staff'   => UserRole.staff,
+          'company' => UserRole.company,
+          'alumni'  => UserRole.alumni,
+          _         => UserRole.student,
+        };
+        final user = UserProfile(
+          id: profile['id'] ?? '',
+          name: profile['fullName'] ?? '',
+          role: role,
+          title: profile['title'] ?? '',
+          avatarUrl: profile['profilePictureUrl'] ?? '',
+          institution: profile['institution'],
+          skills: const [],
+          bio: '',
+          location: '',
+          connections: 0,
+        );
+        _roleController.setRole(role);
+        setState(() => _currentUser = user);
+      }
+    }
+    if (mounted) setState(() => _restoringSession = false);
+  }
 
   @override
   void dispose() {
@@ -53,7 +92,9 @@ class _KairosAppState extends State<KairosApp> {
       title: 'Kairos',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: _currentUser == null
+      home: _restoringSession
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : _currentUser == null
           ? LoginPage(onLoginSuccess: _onLoginSuccess)
           : AnimatedBuilder(
               animation: _roleController,

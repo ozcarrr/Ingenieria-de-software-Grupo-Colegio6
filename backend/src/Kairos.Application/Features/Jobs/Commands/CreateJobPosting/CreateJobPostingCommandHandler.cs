@@ -15,6 +15,7 @@ public class CreateJobPostingCommandHandler(IApplicationDbContext db)
             Title       = request.Title,
             Description = request.Description,
             Location    = request.Location,
+            ImageUrl    = request.ImageUrl,
             ExpiresAt   = request.ExpiresAt,
             Status      = JobStatus.Open,
         };
