@@ -98,10 +98,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// ── CORS (Flutter web dev) ────────────────────────────────────────────────────
+// ── CORS ──────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(opts =>
     opts.AddDefaultPolicy(policy =>
-        policy.SetIsOriginAllowed(_ => true)  // Permite cualquier origen en dev
+        policy.WithOrigins(
+                  "https://statuesque-llama-6b5882.netlify.app",
+                  "http://localhost:3000",
+                  "http://localhost:5000",
+                  "http://localhost:8080")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials()));
