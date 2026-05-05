@@ -3,11 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
 class ApiClient {
-  static const _baseUrl = String.fromEnvironment(
-    'API_URL',
-    defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/api',
-  );
-
+  static const _baseUrl     = String.fromEnvironment('API_URL', defaultValue: 'http://localhost:5000/api');
   static const _tokenKey    = 'auth_token';
   static const _profileKey  = 'auth_profile';
 
