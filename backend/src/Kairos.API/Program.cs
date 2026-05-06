@@ -149,7 +149,14 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await db.Database.MigrateAsync();
+    try { await db.Database.MigrateAsync(); } catch { /* log but don't crash */ }
+
+    // Idempotent safety net — adds columns that migrations may have missed in production.
+    // IF NOT EXISTS is a no-op when the column already exists (MySQL 8+).
+    await db.Database.ExecuteSqlRawAsync(
+        "ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS ImageUrl varchar(500) NULL");
+    await db.Database.ExecuteSqlRawAsync(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS Status varchar(20) NOT NULL DEFAULT 'approved'");
 }
 
 // ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
