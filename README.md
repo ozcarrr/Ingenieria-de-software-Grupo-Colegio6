@@ -2,7 +2,7 @@
 
 Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta alumnos con empresas, prácticas profesionales y la comunidad de su área.
 
-**Demo en producción:** [https://kairoslt.netlify.app](https://kairoslt.netlify.app)
+**app en producción:** [https://kairoslt.netlify.app](https://kairoslt.netlify.app)
 
 ---
 
