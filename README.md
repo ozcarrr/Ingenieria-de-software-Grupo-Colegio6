@@ -1,6 +1,8 @@
 # Kairos
 
-Red social para estudiantes técnico-profesionales. Conecta alumnos con oportunidades laborales, prácticas profesionales y comunidades de su área.
+Red social para estudiantes técnico-profesionales de liceos técnicos. Conecta alumnos con empresas, prácticas profesionales y la comunidad de su área.
+
+**Demo en producción:** [https://kairoslt.netlify.app](https://kairoslt.netlify.app)
 
 ---
 
@@ -8,13 +10,16 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Flutter (web + mobile) |
-| Backend | .NET 8 — Clean Architecture |
+| Frontend | Flutter 3 (web + mobile) |
+| Backend | ASP.NET Core 8 — Clean Architecture (CQRS + MediatR) |
 | Base de datos | MySQL 8.0 via Pomelo EF Core |
-| Almacenamiento | Azure Blob Storage + Azure CDN |
+| Almacenamiento | Azure Blob Storage (producción) / filesystem local (dev) |
 | Tiempo real | ASP.NET Core SignalR |
 | Generación PDF | QuestPDF |
-| Autenticación | JWT Bearer (HS256) |
+| Autenticación | JWT Bearer HS256 |
+| Rate limiting | ASP.NET Core Rate Limiter |
+| Deploy backend | Railway |
+| Deploy frontend | Netlify |
 
 ---
 
@@ -23,206 +28,162 @@ Red social para estudiantes técnico-profesionales. Conecta alumnos con oportuni
 ```
 /
 ├── backend/
+│   ├── Dockerfile
 │   ├── Kairos.sln
 │   └── src/
-│       ├── Kairos.Domain/          # Entidades de dominio
-│       ├── Kairos.Application/     # Casos de uso (CQRS + MediatR)
-│       ├── Kairos.Infrastructure/  # DB, Storage, PDF, JWT
+│       ├── Kairos.Domain/          # Entidades y enums de dominio
+│       ├── Kairos.Application/     # Casos de uso (CQRS, FluentValidation)
+│       ├── Kairos.Infrastructure/  # EF Core, Storage, JWT, PDF, Seeder
 │       └── Kairos.API/             # Controllers, SignalR Hub, Middleware
-└── frontend/
-    └── lib/
-        ├── core/
-        │   ├── api/                # ApiClient (Dio)
-        │   ├── services/           # SocialHubService (SignalR)
-        │   └── theme/              # AppColors
-        └── features/
-            ├── auth/               # Login
-            ├── home/               # Feed + widgets
-            ├── profile/            # Perfil de usuario
-            ├── jobs/               # Ofertas laborales
-            ├── network/            # Red de contactos
-            └── chat/               # Mensajería
+├── frontend/
+│   └── lib/
+│       ├── core/
+│       │   ├── api/                # ApiClient (Dio + JWT interceptor)
+│       │   ├── models/             # UserProfile, etc.
+│       │   ├── services/           # SocialHubService (SignalR)
+│       │   ├── theme/              # AppColors, KairosPalette
+│       │   └── widgets/            # KCard y widgets compartidos
+│       └── features/
+│           ├── auth/               # Login y registro
+│           ├── home/               # Feed principal
+│           ├── profile/            # Perfil de usuario con edición y CV PDF
+│           ├── jobs/               # Ofertas laborales (empresa y estudiante)
+│           ├── network/            # Red de contactos
+│           └── chat/               # Mensajería
+└── codigo_fuente/                  # Copia limpia del código fuente (sin dependencias)
 ```
 
 ---
 
-## Backend — Estado actual
+## Requisitos previos
 
-### Dominio (`Kairos.Domain`) 
+### Backend
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8)
+- MySQL 8.0 corriendo localmente
 
-### Base de datos
-
-La base de datos relacional esta definida bajo los siguientes campos:
-_
-| **Entidad**        | **Campos Clave**                                 | **Importancia en Kairos**                                                                                                                |
-| ------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **User**           | `Id`, `Role`, `Institution`, `PasswordHash`      | El corazón del sistema. Maneja tres perfiles (estudiante, empresa, backoffice) bajo una misma estructura, permitiendo una red unificada. |
-| **Post**           | `Content`, `Type`, `LikesCount`, `CommentsCount` | Motor de interacción social. Permite a los estudiantes mostrar sus proyectos y a los liceos publicar eventos técnicos.                   |
-| **JobPosting**     | `Title`, `Location`, `Status`, `CompanyId`       | Representa las ofertas de práctica o empleo. Es el puente directo entre la necesidad de la empresa y el talento técnico.                 |
-| **JobApplication** | `Status`, `CvUrl`, `JobId`, `ApplicantId`        | Gestiona el proceso de postulación. Almacena el link al CV generado automáticamente, facilitando la revisión para la empresa.            |
-| **UserActivity**   | `ActivityType`, `Description`, `UserId`          | **Diferenciador clave:** Registra acciones (como "Post creado" o "Práctica aplicada") para alimentar el generador de CV automático.      |
-| **Follow**         | `FollowerId`, `FollowedId`                       | Habilita la red de contactos, permitiendo que estudiantes sigan a empresas de su interés y viceversa.                                    |
-| **Comment / Like** | `Content`, `PostId`, `AuthorId`                  | Fomentan el engagement y la validación social de los proyectos publicados por los alumnos.                                               |
-##### ¿Por qué no normalizamos al 100%?
-
-Con 600 usuarios, la diferencia de performance entre 3FN estricta
-y lo que tenemos es imperceptible. Lo que sí hicimos:
-
-- **Contadores desnormalizados** (`LikesCount`, `CommentsCount` en Post):
-  evitan un `COUNT(*)` en cada carga del feed.
-- **Enums como string** en la BD: más fácil de leer en MySQL Workbench
-  y de debuggear cuando algo falla.
-- **Índices compuestos** en las columnas que se usan juntas en las queries
-  más frecuentes (feed, actividades de usuario, postulaciones por oferta).
-
-##### ¿Por qué clave compuesta en Like y Follow?
-
-La BD garantiza a nivel de constraint que un usuario no puede
-dar like dos veces o seguirse a sí mismo. No depende de que
-el código lo valide correctamente — MySQL lo rechaza directamente.
-
-### Application — CQRS handlers implementados
-
-| Feature | Comando / Query |
-|---|---|
-| Auth | `LoginCommand`, `RegisterCommand` (con FluentValidation) |
-| Feed | `GetFeedQuery` (paginación por offset), `CreatePostCommand` |
-| Storage | `UploadFileCommand` → delega a `IStorageService` |
-
-#### Todo
-| Curriculum | `GenerateCurriculumCommand` → agrega actividades y delega a `ICurriculumGeneratorService` |
-
-### Infrastructure — Servicios implementados
-
-| Servicio | Descripción |
-|---|---|
-| `ApplicationDbContext` | EF Core + Pomelo MySQL. Configuraciones de índices, longitudes y cascadas. |
-| `StorageService` | Sube archivos a Azure Blob Storage y retorna la URL del CDN. |
-| `JwtService` | Emite tokens JWT HS256 con claims de userId, email y fullName. |
-
-#### Todo
-| `CurriculumGenerator` | Estructura creada con QuestPDF. **Implementación pendiente.** |
-
-### API — Endpoints disponibles
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/api/auth/register` | Registro de usuario |
-| POST | `/api/auth/login` | Login → retorna JWT |
-| GET | `/api/posts/feed` | Feed paginado (`?page=1&pageSize=20`) |
-| POST | `/api/posts` | Crear publicación |
-| POST | `/api/storage/upload` | Subir imagen/video a Azure Blob (max 50 MB) |
-
-#### Todo
-| GET | `/api/curriculum/me` | Descargar curriculum PDF |
-
-### SignalR Hub — `/hubs/social`
-
-| Método (cliente → servidor) | Descripción |
-|---|---|
-| `JoinPostComments(postId)` | Unirse al grupo de comentarios de un post |
-| `LeavePostComments(postId)` | Salir del grupo |
-| `SendComment(postId, content)` | Enviar comentario en tiempo real |
-| `SendTyping(postId)` | Indicador "está escribiendo..." |
-
-| Evento (servidor → cliente) | Descripción |
-|---|---|
-| `ReceiveLike` | Notificación de like en una publicación propia |
-| `ReceiveFollow` | Notificación de nuevo seguidor |
-| `ReceiveComment` | Nuevo comentario en un post que se está viendo |
-| `UserTyping` | Alguien está escribiendo en los comentarios |
+### Frontend
+- [Flutter 3.x](https://docs.flutter.dev/get-started/install) con soporte web habilitado
 
 ---
 
-## Frontend — Estado actual
+## Instrucciones para ejecutar el proyecto localmente
 
-### Pantallas implementadas
+### 1. Base de datos
 
-| Pantalla | Archivo | Estado |
-|---|---|---|
-| Login | `auth/presentation/pages/login_page.dart` | UI completa. Navegación mock (TODO: conectar a `ApiClient`). |
-| Home / Feed | `home/presentation/pages/home_page.dart` | UI con datos mock. Banner de notificaciones en tiempo real (SignalR). `_connectHub(jwt)` listo para llamar post-login. |
-| Perfil | `profile/presentation/pages/profile_page.dart` | Edición de datos. Subida de avatar a Azure Blob via `ApiClient`. Botón de descarga de reporte PDF. |
-| Red | `network/presentation/pages/network_page.dart` | UI con datos mock. |
-| Empleos | `jobs/presentation/pages/jobs_page.dart` | UI con datos mock. |
-| Chats | `chat/presentation/pages/chats_page.dart` | UI con datos mock. |
+Crear la base de datos y el usuario en MySQL:
 
-### Servicios core
-
-| Servicio | Archivo | Descripción |
-|---|---|---|
-| `ApiClient` | `core/api/api_client.dart` | Cliente Dio con interceptor JWT (token guardado en `FlutterSecureStorage`). Métodos para auth, feed, storage y reportes. |
-| `SocialHubService` | `core/services/social_hub_service.dart` | Conexión SignalR con política de reconexión automática. Expone `Stream` para likes, follows, comentarios y typing. |
-
-### Dependencias Flutter (`pubspec.yaml`)
-
-```
-dio, signalr_netcore, image_picker, file_picker,
-flutter_pdfview, flutter_riverpod, flutter_secure_storage, path_provider
+```sql
+CREATE DATABASE kairos;
+CREATE USER 'kairos_user'@'localhost' IDENTIFIED BY 'kairos2026';
+GRANT ALL PRIVILEGES ON kairos.* TO 'kairos_user'@'localhost';
+FLUSH PRIVILEGES;
 ```
 
----
-
-## Configuración — Lo que falta para levantar el proyecto
-
-### 1. Base de datos MySQL
-
-Crear la base de datos y ejecutar las migraciones una vez instalado .NET 8:
+### 2. Backend
 
 ```bash
 cd backend
-dotnet ef migrations add Init --project src/Kairos.Infrastructure --startup-project src/Kairos.API
-dotnet ef database update --startup-project src/Kairos.API
+
+# Restaurar dependencias
+dotnet restore
+
+# Aplicar migraciones (crea las tablas)
+dotnet ef database update --startup-project src/Kairos.API --project src/Kairos.Infrastructure
+
+# Ejecutar en modo desarrollo (datos de prueba se insertan automáticamente)
+dotnet run --project src/Kairos.API
 ```
 
-### 2. `appsettings.json`
+El backend quedará disponible en `http://localhost:5000`.
+Swagger UI: `http://localhost:5000/swagger`
 
-Completar los valores reales en `backend/src/Kairos.API/appsettings.json`:
+> En modo desarrollo, el seeder crea automáticamente usuarios de prueba:
+> - Estudiante: `estudiante@kairos.cl` / `kairos2026`
+> - Staff: `staff1@kairos.cl` / `kairos2026`
+> - Empresa: `empresa@kairos.cl` / `kairos2026`
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=...;Database=kairos;User=...;Password=...;"
-  },
-  "Jwt": {
-    "SecretKey": "mínimo 32 caracteres aleatorios"
-  },
-  "AzureBlob": {
-    "ConnectionString": "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;",
-    "ContainerName": "kairos-media",
-    "CdnBaseUrl": "https://TU_ENDPOINT.azureedge.net/kairos-media"
-  }
-}
+### 3. Frontend
+
+```bash
+cd frontend
+
+# Obtener dependencias
+flutter pub get
+
+# Ejecutar en web (apunta al backend local)
+flutter run -d web-server --web-port=3000
 ```
 
-Para desarrollo local con Azurite (emulador de Blob): `appsettings.Development.json` ya tiene `UseDevelopmentStorage=true`.
-
-### 3. Frontend — URL del API
-
-Cambiar la URL base en `frontend/lib/core/api/api_client.dart`:
-
-```dart
-static const _baseUrl = 'https://TU_API.azurewebsites.net/api';
-```
-
----
-## Diagrama de Lógica
-
-<img width="1440" height="1016" alt="imagen" src="https://github.com/user-attachments/assets/6a28e10a-7f14-403d-bc21-bc9acdae0733" />
-
----
-## Pendiente
-
-- [ ] Implementar el cuerpo de `CurriculumGenerator` (generador de CV en PDF con QuestPDF)
-- [ ] Conectar `LoginPage` al `ApiClient` y llamar a `_connectHub(jwt)` tras login exitoso
-- [ ] Reemplazar datos mock del Feed, Jobs, Network y Chats con llamadas reales a la API
-- [ ] Integrar Riverpod como state management (providers para auth, feed, perfil)
-- [ ] Implementar vista de previsualización PDF con `flutter_pdfview`
-- [ ] Crear migración inicial de EF Core y aplicarla a MySQL
-- [ ] Configurar Azure CDN (Front Door recomendado para escala global + WAF)
+Abrir `http://localhost:3000` en el navegador.
 
 ---
 
-## Nota sobre CDN
+## Variables de entorno del backend (producción)
 
-Para producción se recomienda **Azure Front Door** sobre Azure CDN estándar: ofrece SSL offloading, WAF integrado y mejor rendimiento global para assets de alta demanda (imágenes y videos del feed).
+Configurar en `appsettings.json` o como variables de entorno en Railway:
+
+| Variable | Descripción |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | Cadena de conexión MySQL |
+| `Jwt__SecretKey` | Clave secreta JWT (mínimo 32 caracteres) |
+| `Jwt__Issuer` | Emisor del token (ej. `kairos-api`) |
+| `Jwt__Audience` | Audiencia del token (ej. `kairos-app`) |
+| `AzureBlob__ConnectionString` | Cadena de conexión Azure Blob Storage |
+| `AzureBlob__ContainerName` | Nombre del contenedor (ej. `kairos-media`) |
+| `AzureBlob__CdnBaseUrl` | URL base del CDN o del contenedor público |
+
+---
+
+## Despliegue
+
+### Backend → Railway
+
+1. Conectar el repositorio en [railway.app](https://railway.app)
+2. Railway detecta el `Dockerfile` en `/backend/` automáticamente
+3. Agregar un plugin MySQL en Railway o conectar una BD externa
+4. Configurar las variables de entorno listadas arriba
+
+### Frontend → Netlify
+
+```bash
+cd frontend
+flutter build web
+netlify deploy --prod --dir=build/web
+```
+
+---
+
+## Funcionalidades implementadas
+
+- Registro e inicio de sesión con JWT (estudiante, staff, empresa)
+- Feed social con publicaciones, likes y comentarios en tiempo real (SignalR)
+- Subida de imágenes para posts y publicaciones de empleo
+- Gestión de ofertas laborales: crear, editar, eliminar y ver postulantes
+- Postulación a ofertas de empleo
+- Red de contactos (seguir / dejar de seguir usuarios)
+- Mensajería en tiempo real
+- Perfil de usuario editable con foto de perfil
+- Generación de CV en PDF
+- Panel de administración de usuarios para staff
+- Importación de alumnos vía CSV
+- Persistencia de sesión en web (localStorage vía flutter_secure_storage)
+- Rate limiting en endpoints sensibles (login, generación de CV)
+- Datos de prueba automáticos en entorno de desarrollo
+
+---
+
+## Diagrama de arquitectura
+
+```
+Flutter Web  ──HTTPS──►  ASP.NET Core 8 (Railway)  ──►  MySQL 8 (Railway)
+    │                          │
+    │                          └──►  Azure Blob Storage
+    │
+    └──WebSocket──►  SignalR Hub  ──►  clientes conectados
+```
+
+---
+
+## Equipo — Grupo Colegio 6
+
+Proyecto desarrollado para la asignatura de Ingeniería de Software, Universidad del Desarrollo, T1 2026.
