@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using FluentValidation;
 using Kairos.Application.Common.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kairos.API.Middleware;
 
@@ -24,13 +25,14 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         var (statusCode, title) = ex switch
         {
-            ValidationException      => (HttpStatusCode.BadRequest,    "Solicitud inválida."),
-            UnauthorizedAccessException => (HttpStatusCode.Unauthorized,  "No autorizado."),
-            ForbiddenException          => (HttpStatusCode.Forbidden,     "Acción no permitida."),
-            KeyNotFoundException        => (HttpStatusCode.NotFound,      "Recurso no encontrado."),
-            InvalidOperationException   => (HttpStatusCode.Conflict,      "Operación inválida."),
-            ArgumentException           => (HttpStatusCode.BadRequest,    "Solicitud inválida."),
-            _                           => (HttpStatusCode.InternalServerError, "Error interno del servidor.")
+            ValidationException         => (HttpStatusCode.BadRequest,           "Solicitud inválida."),
+            UnauthorizedAccessException => (HttpStatusCode.Unauthorized,          "No autorizado."),
+            ForbiddenException          => (HttpStatusCode.Forbidden,             "Acción no permitida."),
+            KeyNotFoundException        => (HttpStatusCode.NotFound,              "Recurso no encontrado."),
+            InvalidOperationException   => (HttpStatusCode.Conflict,              "Operación inválida."),
+            ArgumentException           => (HttpStatusCode.BadRequest,            "Solicitud inválida."),
+            DbUpdateException           => (HttpStatusCode.InternalServerError,   "Error al guardar en la base de datos."),
+            _                           => (HttpStatusCode.InternalServerError,   "Error interno del servidor.")
         };
 
         context.Response.ContentType = "application/problem+json";

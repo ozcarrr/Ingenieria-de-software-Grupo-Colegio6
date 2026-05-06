@@ -9,10 +9,12 @@ using Kairos.API.RateLimit;
 using Kairos.Application.Common.Behaviors;
 using Kairos.Application.Features.Auth.Commands.Login;
 using Kairos.Infrastructure;
+using Kairos.Infrastructure.Data;
 using Kairos.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -142,6 +144,13 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+// ── Auto-apply pending EF Core migrations on startup ─────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
 if (app.Environment.IsDevelopment())
