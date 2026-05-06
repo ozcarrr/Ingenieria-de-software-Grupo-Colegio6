@@ -69,11 +69,11 @@ class PostModel {
     );
   }
 
-  PostModel copyWith({int? likes, int? comments}) {
+  PostModel copyWith({int? likes, int? comments, String? content}) {
     return PostModel(
       id: id,
       author: author,
-      content: content,
+      content: content ?? this.content,
       likes: likes ?? this.likes,
       comments: comments ?? this.comments,
       shares: shares,

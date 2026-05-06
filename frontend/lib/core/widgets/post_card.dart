@@ -8,9 +8,20 @@ import '../theme/kairos_palette.dart';
 import 'k_card.dart';
 
 class PostCard extends StatefulWidget {
-  const PostCard({super.key, required this.post});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.currentUserId = '',
+    this.currentUserRole = '',
+    this.onDeleted,
+    this.onEdited,
+  });
 
   final PostModel post;
+  final String currentUserId;
+  final String currentUserRole;
+  final VoidCallback? onDeleted;
+  final void Function(String newContent)? onEdited;
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -98,6 +109,109 @@ class _PostCardState extends State<PostCard> {
     } finally {
       if (mounted) setState(() => _loadingComments = false);
     }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar publicación'),
+        content: const Text(
+            '¿Estás seguro de que quieres eliminar esta publicación? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final postId = int.tryParse(widget.post.id);
+      if (postId != null) await _api.deletePost(postId);
+      widget.onDeleted?.call();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo eliminar la publicación.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditDialog() {
+    final ctrl = TextEditingController(text: widget.post.content);
+    bool saving = false;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setInner) => AlertDialog(
+          title: const Text('Editar publicación'),
+          content: SizedBox(
+            width: 480,
+            child: TextField(
+              controller: ctrl,
+              maxLines: 6,
+              maxLength: 1000,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Escribe algo...',
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final newContent = ctrl.text.trim();
+                      if (newContent.isEmpty) return;
+                      setInner(() => saving = true);
+                      try {
+                        final postId = int.tryParse(widget.post.id);
+                        if (postId != null) {
+                          await _api.updatePost(postId, newContent);
+                        }
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        widget.onEdited?.call(newContent);
+                      } catch (_) {
+                        setInner(() => saving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text('No se pudo editar la publicación.'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _submitComment() async {
@@ -241,10 +355,14 @@ class _PostCardState extends State<PostCard> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          onPressed: () {},
-                          icon: const Icon(Icons.more_horiz_rounded,
-                              color: KairosPalette.secondary),
+                        _PostMenu(
+                          canEdit: widget.currentUserId.isNotEmpty &&
+                              widget.currentUserId == post.author.id,
+                          canDelete: widget.currentUserId.isNotEmpty &&
+                              (widget.currentUserId == post.author.id ||
+                                  widget.currentUserRole == 'staff'),
+                          onEdit: _showEditDialog,
+                          onDelete: _confirmDelete,
                         ),
                       ],
                     ),
@@ -497,6 +615,58 @@ class _PostCardState extends State<PostCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PostMenu extends StatelessWidget {
+  const _PostMenu({
+    required this.canEdit,
+    required this.canDelete,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final bool canEdit;
+  final bool canDelete;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!canEdit && !canDelete) {
+      return const SizedBox(width: 40);
+    }
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz_rounded, color: KairosPalette.secondary),
+      onSelected: (value) {
+        if (value == 'edit') onEdit();
+        if (value == 'delete') onDelete();
+      },
+      itemBuilder: (_) => [
+        if (canEdit)
+          const PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                Icon(Icons.edit_rounded, size: 18),
+                SizedBox(width: 10),
+                Text('Editar'),
+              ],
+            ),
+          ),
+        if (canDelete)
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_rounded, size: 18, color: Colors.redAccent),
+                SizedBox(width: 10),
+                Text('Eliminar', style: TextStyle(color: Colors.redAccent)),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

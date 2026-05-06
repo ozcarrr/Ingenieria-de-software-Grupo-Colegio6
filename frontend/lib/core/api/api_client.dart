@@ -164,6 +164,14 @@ class ApiClient {
     return response.data as Map<String, dynamic>;
   }
 
+  Future<void> deletePost(int postId) async {
+    await _dio.delete('/posts/$postId');
+  }
+
+  Future<void> updatePost(int postId, String content) async {
+    await _dio.put('/posts/$postId', data: {'content': content});
+  }
+
   // ── Jobs ─────────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getJobs({

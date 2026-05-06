@@ -40,6 +40,7 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final token = response['token'] as String;
+      final userId = (response['userId'] as int? ?? 0).toString();
       final fullName = response['fullName'] as String? ?? 'Usuario';
       final avatarUrl = response['profilePictureUrl'] as String? ?? '';
       final institution = response['institution'] as String?;
@@ -49,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
       final roleStr = response['role'] as String? ?? 'student';
       final titleStr = _titleForRole(roleStr);
       await client.saveProfile({
-        'id': 'me',
+        'id': userId,
         'fullName': fullName,
         'role': roleStr,
         'title': titleStr,
@@ -58,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       final user = UserProfile(
-        id: 'me',
+        id: userId,
         name: fullName,
         role: _mapRole(roleStr),
         title: titleStr,

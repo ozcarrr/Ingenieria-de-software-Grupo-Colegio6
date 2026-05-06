@@ -502,7 +502,18 @@ class _HomePageState extends State<HomePage> {
           ..._posts.map(
             (post) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: PostCard(post: post),
+              child: PostCard(
+                post: post,
+                currentUserId: widget.currentUser.id,
+                currentUserRole: widget.currentUser.role.name,
+                onDeleted: () => setState(() => _posts.remove(post)),
+                onEdited: (newContent) {
+                  setState(() {
+                    final idx = _posts.indexOf(post);
+                    if (idx != -1) _posts[idx] = post.copyWith(content: newContent);
+                  });
+                },
+              ),
             ),
           ),
       ],

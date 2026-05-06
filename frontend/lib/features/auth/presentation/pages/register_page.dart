@@ -82,13 +82,14 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       final token = loginResponse['token'] as String;
+      final userId = (loginResponse['userId'] as int? ?? 0).toString();
       final fullName = loginResponse['fullName'] as String? ?? _nameController.text.trim();
       final avatarUrl = loginResponse['profilePictureUrl'] as String? ?? '';
       final roleStr = loginResponse['role'] as String? ?? _selectedRole;
 
       await client.saveToken(token);
       await client.saveProfile({
-        'id': 'me',
+        'id': userId,
         'fullName': fullName,
         'role': roleStr,
         'title': _titleForRole(_selectedRole),
@@ -96,7 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
       });
 
       final user = UserProfile(
-        id: 'me',
+        id: userId,
         name: fullName,
         role: _mapRole(roleStr),
         title: _titleForRole(_selectedRole),

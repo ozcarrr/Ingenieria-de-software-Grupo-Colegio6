@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Kairos.Application.Features.Posts.Commands.AddComment;
 using Kairos.Application.Features.Posts.Commands.CreatePost;
+using Kairos.Application.Features.Posts.Commands.DeletePost;
 using Kairos.Application.Features.Posts.Commands.LikePost;
+using Kairos.Application.Features.Posts.Commands.UpdatePost;
 using Kairos.Application.Features.Posts.Queries.GetFeed;
 using Kairos.Application.Features.Posts.Queries.GetPostComments;
 using MediatR;
@@ -19,6 +21,8 @@ public class PostsController(IMediator mediator) : ControllerBase
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
         ?? throw new UnauthorizedAccessException());
+
+    private string GetUserRole() => User.FindFirstValue(ClaimTypes.Role) ?? "student";
 
     // ── Feed ─────────────────────────────────────────────────────────────────
 
@@ -50,6 +54,28 @@ public class PostsController(IMediator mediator) : ControllerBase
 
         var postId = await mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetFeed), new { id = postId }, postId);
+    }
+
+    // ── Like / Unlike (toggle) ────────────────────────────────────────────────
+
+    // ── Delete post ───────────────────────────────────────────────────────────
+
+    [HttpDelete("{postId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeletePost(int postId, CancellationToken ct)
+    {
+        await mediator.Send(new DeletePostCommand(postId, GetUserId(), GetUserRole()), ct);
+        return NoContent();
+    }
+
+    // ── Update post ───────────────────────────────────────────────────────────
+
+    [HttpPut("{postId:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UpdatePost(int postId, [FromBody] UpdatePostRequest request, CancellationToken ct)
+    {
+        await mediator.Send(new UpdatePostCommand(postId, GetUserId(), request.Content), ct);
+        return NoContent();
     }
 
     // ── Like / Unlike (toggle) ────────────────────────────────────────────────
@@ -95,5 +121,6 @@ public record CreatePostRequest(
     string? EventDate = null);
 
 public record AddCommentRequest(string Content);
+public record UpdatePostRequest(string Content);
 
 public record LikeResult(int PostId, int LikesCount);
