@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/api/api_client.dart';
-import '../../../../core/data/mock_data.dart';
 import '../../../../core/models/user_profile.dart';
 import '../../../../core/theme/kairos_palette.dart';
 import '../../../../core/widgets/k_card.dart';
@@ -20,6 +19,7 @@ class _NetworkPageState extends State<NetworkPage> {
   final _api = ApiClient();
   List<UserProfile> _apiSuggestions = [];
   bool _loading = true;
+  bool _error = false;
 
   @override
   void initState() {
@@ -28,6 +28,7 @@ class _NetworkPageState extends State<NetworkPage> {
   }
 
   Future<void> _loadSuggestions() async {
+    if (mounted) setState(() { _loading = true; _error = false; });
     try {
       final data = await _api.getNetworkSuggestions();
       final users = data.cast<Map<String, dynamic>>().map((json) {
@@ -38,21 +39,25 @@ class _NetworkPageState extends State<NetworkPage> {
           'alumni'  => UserRole.alumni,
           _         => UserRole.student,
         };
+        // Pre-fill followed state from API
+        if (json['isFollowing'] == true) {
+          _connected.add(json['id'].toString());
+        }
         return UserProfile(
           id: json['id'].toString(),
           name: json['fullName'] as String? ?? 'Usuario',
           role: role,
-          title: json['title'] as String? ?? json['otherUserTitle'] as String? ?? '',
+          title: json['title'] as String? ?? '',
           avatarUrl: json['avatarUrl'] as String? ?? '',
           skills: const [],
           bio: json['bio'] as String? ?? '',
           location: json['location'] as String? ?? '',
-          connections: json['followersCount'] as int? ?? 0,
+          connections: (json['followersCount'] as num?)?.toInt() ?? 0,
         );
       }).toList();
       if (mounted) setState(() => _apiSuggestions = users);
     } catch (_) {
-      // Fall back to mock data
+      if (mounted) setState(() => _error = true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -114,9 +119,7 @@ class _NetworkPageState extends State<NetworkPage> {
         ? const EdgeInsets.fromLTRB(14, 14, 14, 16)
         : const EdgeInsets.all(20);
     final query = _searchController.text.trim().toLowerCase();
-    final allSuggestions =
-        _apiSuggestions.isNotEmpty ? _apiSuggestions : suggestedUsers;
-    final visible = allSuggestions
+    final visible = _apiSuggestions
         .where((u) {
           if (query.isEmpty) return true;
           return u.name.toLowerCase().contains(query) ||
@@ -196,45 +199,74 @@ class _NetworkPageState extends State<NetworkPage> {
               },
             ),
           const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              int cross = 1;
-              if (constraints.maxWidth > 1260) {
-                cross = 3;
-              } else if (constraints.maxWidth > 760) {
-                cross = 2;
-              }
-
-              if (cross == 1) {
-                return Column(
-                  children: visible
-                      .map(
-                        (user) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _networkUserCard(user),
-                        ),
-                      )
-                      .toList(growable: false),
-                );
-              }
-
-              return GridView.builder(
-                itemCount: visible.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: cross,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.88,
+          if (_loading)
+            const Center(child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: CircularProgressIndicator(),
+            ))
+          else if (_error)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Column(
+                  children: [
+                    const Text('No se pudo cargar la red. Intenta de nuevo.'),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: _loadSuggestions,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
                 ),
-                itemBuilder: (context, index) {
-                  final user = visible[index];
-                  return _networkUserCard(user);
-                },
-              );
-            },
-          ),
+              ),
+            )
+          else if (visible.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Text('No hay sugerencias disponibles por ahora.'),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                int cross = 1;
+                if (constraints.maxWidth > 1260) {
+                  cross = 3;
+                } else if (constraints.maxWidth > 760) {
+                  cross = 2;
+                }
+
+                if (cross == 1) {
+                  return Column(
+                    children: visible
+                        .map(
+                          (user) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _networkUserCard(user),
+                          ),
+                        )
+                        .toList(growable: false),
+                  );
+                }
+
+                return GridView.builder(
+                  itemCount: visible.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: cross,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.88,
+                  ),
+                  itemBuilder: (context, index) {
+                    final user = visible[index];
+                    return _networkUserCard(user);
+                  },
+                );
+              },
+            ),
         ],
       ),
     );
