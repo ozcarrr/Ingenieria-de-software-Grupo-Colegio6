@@ -149,14 +149,26 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try { await db.Database.MigrateAsync(); } catch { /* log but don't crash */ }
+    try { await db.Database.MigrateAsync(); } catch { /* migration already applied */ }
 
-    // Idempotent safety net — adds columns that migrations may have missed in production.
-    // IF NOT EXISTS is a no-op when the column already exists (MySQL 8+).
-    await db.Database.ExecuteSqlRawAsync(
-        "ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS ImageUrl varchar(500) NULL");
-    await db.Database.ExecuteSqlRawAsync(
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS Status varchar(20) NOT NULL DEFAULT 'approved'");
+    // Safety net: add columns that migrations may have skipped in production.
+    // Uses information_schema check so it works on MySQL 5.7+ (no IF NOT EXISTS needed).
+    await EnsureColumnAsync(db, "job_postings", "ImageUrl", "varchar(500) NULL");
+    await EnsureColumnAsync(db, "users",        "Status",   "varchar(20) NOT NULL DEFAULT 'approved'");
+}
+
+static async Task EnsureColumnAsync(ApplicationDbContext db, string table, string column, string definition)
+{
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync($"ALTER TABLE `{table}` ADD COLUMN `{column}` {definition}");
+    }
+    catch (Exception ex) when (
+        ex.Message.Contains("Duplicate column name") ||
+        ex.InnerException?.Message.Contains("Duplicate column name") == true)
+    {
+        // Column already exists — nothing to do
+    }
 }
 
 // ── Seed datos de testeo (solo en desarrollo) ─────────────────────────────────
