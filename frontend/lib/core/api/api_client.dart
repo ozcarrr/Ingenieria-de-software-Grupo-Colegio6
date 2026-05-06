@@ -232,6 +232,11 @@ class ApiClient {
     await _dio.delete('/network/$userId/follow');
   }
 
+  Future<List<dynamic>> getFollowing() async {
+    final response = await _dio.get('/network/following');
+    return response.data as List<dynamic>;
+  }
+
   // ── Chat ─────────────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getConversations() async {

@@ -1,8 +1,6 @@
 import '../models/user_profile.dart';
 import '../../features/home/data/models/post_model.dart';
 import '../../features/jobs/data/models/job_model.dart';
-import '../../features/chat/data/models/chat_model.dart';
-
 // ── Users ──────────────────────────────────────────────────────────────────────
 
 const List<UserProfile> allUsers = [
@@ -231,22 +229,6 @@ const List<JobModel> jobs = [
     postedDate: 'Hace 4 dias',
     specializations: ['Automatizacion', 'Mecatronica'],
   ),
-];
-
-// ── Chats ──────────────────────────────────────────────────────────────────────
-
-final List<ChatPreview> chatPreviews = [
-  ChatPreview(id: '1', user: allUsers[5], lastMessage: 'Hola Matias! Te interesaria una practica en TecnoSur?', timestamp: 'Hace 15 min', unread: true),
-  ChatPreview(id: '2', user: allUsers[3], lastMessage: 'Recuerda llevar tu informe de practica el viernes.', timestamp: 'Hace 2 horas', unread: true),
-  ChatPreview(id: '3', user: allUsers[1], lastMessage: 'Nos juntamos manana para el proyecto de automatizacion?', timestamp: 'Hace 4 horas', unread: false),
-  ChatPreview(id: '4', user: allUsers[2], lastMessage: 'Gracias por tus consejos para la postulacion.', timestamp: 'Ayer', unread: false),
-];
-
-const List<ChatMessage> sampleConversation = [
-  ChatMessage(id: '1', text: 'Hola! Vi tu perfil y me gustaria conectar.', timestamp: '10:30', isMine: false),
-  ChatMessage(id: '2', text: 'Excelente, encantado de conectar.', timestamp: '10:35', isMine: true),
-  ChatMessage(id: '3', text: 'Tienes experiencia con PLC Siemens?', timestamp: '10:40', isMine: false),
-  ChatMessage(id: '4', text: 'Si, he trabajado con S7-1200 y S7-1500 en proyectos escolares.', timestamp: '10:42', isMine: true),
 ];
 
 // ── Misc ───────────────────────────────────────────────────────────────────────

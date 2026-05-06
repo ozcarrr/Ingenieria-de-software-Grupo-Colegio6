@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Kairos.Application.Features.Network.Commands.FollowUser;
 using Kairos.Application.Features.Network.Commands.UnfollowUser;
+using Kairos.Application.Features.Network.Queries.GetFollowing;
 using Kairos.Application.Features.Network.Queries.GetNetworkSuggestions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,15 @@ public class NetworkController(IMediator mediator) : ControllerBase
         User.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? User.FindFirstValue("sub")
         ?? throw new UnauthorizedAccessException());
+
+    /// <summary>Get users that the current user follows (for chat suggestions).</summary>
+    [HttpGet("following")]
+    [ProducesResponseType(typeof(IReadOnlyList<UserSuggestionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetFollowing(CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetFollowingQuery(GetUserId()), ct);
+        return Ok(result);
+    }
 
     /// <summary>Get suggested users to follow (not yet followed).</summary>
     [HttpGet("suggestions")]

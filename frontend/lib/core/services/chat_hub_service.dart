@@ -12,7 +12,10 @@ import 'package:signalr_netcore/signalr_client.dart';
 ///   await hub.sendMessage(myId, peerId, 'Hello!');
 ///   hub.dispose();
 class ChatHubService {
-  static const String _defaultUrl = 'http://localhost:5001/hubs/chat';
+  static const _defaultUrl = String.fromEnvironment(
+    'HUB_URL',
+    defaultValue: 'https://ingenieria-de-software-grupo-colegio6-production.up.railway.app/hubs/chat',
+  );
 
   HubConnection? _connection;
 
